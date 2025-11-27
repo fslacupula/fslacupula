@@ -321,27 +321,40 @@ export const AsistenciaEntrenamiento = {
 
   async listarPorJugador(jugadorId) {
     const result = await pool.query(
-      `SELECT e.id as entrenamiento_id, e.fecha, e.hora, e.lugar as ubicacion, e.descripcion,
+      `SELECT e.id as entrenamiento_id, e.fecha_hora, e.lugar as ubicacion, e.descripcion,
               ae.estado, ae.motivo_ausencia_id, ae.comentario,
               ma.motivo as motivo_nombre
        FROM asistencias_entrenamientos ae
        JOIN entrenamientos e ON ae.entrenamiento_id = e.id
        LEFT JOIN motivos_ausencia ma ON ae.motivo_ausencia_id = ma.id
        WHERE ae.jugador_id = $1
-       ORDER BY e.fecha DESC, e.hora DESC`,
+       ORDER BY e.fecha_hora DESC`,
       [jugadorId]
     );
-    return result.rows.map((row) => ({
-      id: row.entrenamiento_id,
-      fecha: row.fecha,
-      hora: row.hora,
-      ubicacion: row.ubicacion,
-      descripcion: row.descripcion,
-      estado: row.estado,
-      motivo_ausencia_id: row.motivo_ausencia_id,
-      motivo_nombre: row.motivo_nombre,
-      comentarios: row.comentario,
-    }));
+    return result.rows.map((row) => {
+      // Extraer fecha y hora del timestamp para compatibilidad con frontend
+      const fecha = new Date(row.fecha_hora);
+      const fechaStr = row.fecha_hora; // Enviar como ISO string
+      const horaStr = fecha.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "Europe/Madrid",
+      });
+
+      return {
+        id: row.entrenamiento_id,
+        fecha: fechaStr,
+        hora: horaStr,
+        ubicacion: row.ubicacion,
+        descripcion: row.descripcion,
+        estado: row.estado,
+        motivo_ausencia_id: row.motivo_ausencia_id,
+        motivo_nombre: row.motivo_nombre,
+        comentarios: row.comentario,
+      };
+    });
   },
 };
 
@@ -388,7 +401,7 @@ export const AsistenciaPartido = {
 
   async listarPorJugador(jugadorId) {
     const result = await pool.query(
-      `SELECT p.id as partido_id, p.fecha, p.hora, p.rival, p.lugar as ubicacion, 
+      `SELECT p.id as partido_id, p.fecha_hora, p.rival, p.lugar as ubicacion, 
               p.tipo, p.es_local, p.resultado,
               ap.estado, ap.motivo_ausencia_id, ap.comentario,
               ma.motivo as motivo_nombre
@@ -396,23 +409,36 @@ export const AsistenciaPartido = {
        JOIN partidos p ON ap.partido_id = p.id
        LEFT JOIN motivos_ausencia ma ON ap.motivo_ausencia_id = ma.id
        WHERE ap.jugador_id = $1
-       ORDER BY p.fecha DESC, p.hora DESC`,
+       ORDER BY p.fecha_hora DESC`,
       [jugadorId]
     );
-    return result.rows.map((row) => ({
-      id: row.partido_id,
-      fecha: row.fecha,
-      hora: row.hora,
-      ubicacion: row.ubicacion,
-      rival: row.rival,
-      tipo: row.tipo,
-      es_local: row.es_local,
-      resultado: row.resultado,
-      estado: row.estado,
-      motivo_ausencia_id: row.motivo_ausencia_id,
-      motivo_nombre: row.motivo_nombre,
-      comentarios: row.comentario,
-    }));
+    return result.rows.map((row) => {
+      // Extraer fecha y hora del timestamp para compatibilidad con frontend
+      const fecha = new Date(row.fecha_hora);
+      const fechaStr = row.fecha_hora; // Enviar como ISO string
+      const horaStr = fecha.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "Europe/Madrid",
+      });
+
+      return {
+        id: row.partido_id,
+        fecha: fechaStr,
+        hora: horaStr,
+        ubicacion: row.ubicacion,
+        rival: row.rival,
+        tipo: row.tipo,
+        es_local: row.es_local,
+        resultado: row.resultado,
+        estado: row.estado,
+        motivo_ausencia_id: row.motivo_ausencia_id,
+        motivo_nombre: row.motivo_nombre,
+        comentarios: row.comentario,
+      };
+    });
   },
 };
 
