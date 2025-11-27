@@ -2,6 +2,22 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { entrenamientos, partidos, motivos } from "../services/api";
 
+// Helper para extraer fecha en formato YYYY-MM-DD sin conversión de zona horaria
+const getFechaString = (fecha) => {
+  if (!fecha) return "";
+  if (typeof fecha === "string") {
+    return fecha.split("T")[0];
+  }
+  return fecha;
+};
+
+// Helper para comparar fechas sin conversión de zona horaria
+const compararFechas = (fechaStr1, fechaStr2) => {
+  const f1 = getFechaString(fechaStr1);
+  const f2 = getFechaString(fechaStr2);
+  return f1.localeCompare(f2);
+};
+
 export default function DashboardJugador({ user, setUser }) {
   const [misEntrenamientos, setMisEntrenamientos] = useState([]);
   const [misPartidos, setMisPartidos] = useState([]);
@@ -138,14 +154,19 @@ export default function DashboardJugador({ user, setUser }) {
 
   const getEventosDelDia = (fecha) => {
     if (!fecha) return [];
-    const fechaStr = fecha.toISOString().split("T")[0];
+    // Formatear fecha sin conversión de zona horaria
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const fechaStr = `${year}-${month}-${day}`;
+    
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = misEntrenamientos
-        .filter((e) => e.fecha.split("T")[0] === fechaStr)
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
         .map((e) => ({ ...e, tipoEvento: "entrenamientos" }));
       const partidos = misPartidos
-        .filter((e) => e.fecha.split("T")[0] === fechaStr)
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
         .map((e) => ({ ...e, tipoEvento: "partidos" }));
       eventos = [...entrenamientos, ...partidos].sort((a, b) =>
         a.hora.localeCompare(b.hora)
@@ -153,7 +174,7 @@ export default function DashboardJugador({ user, setUser }) {
     } else {
       eventos =
         activeTab === "entrenamientos" ? misEntrenamientos : misPartidos;
-      eventos = eventos.filter((e) => e.fecha.split("T")[0] === fechaStr);
+      eventos = eventos.filter((e) => getFechaString(e.fecha) === fechaStr);
     }
     return eventos;
   };
@@ -177,9 +198,7 @@ export default function DashboardJugador({ user, setUser }) {
         tipoEvento: "partidos",
       }));
       eventos = [...entrenamientosConTipo, ...partidosConTipo].sort((a, b) => {
-        const fechaA = new Date(a.fecha);
-        const fechaB = new Date(b.fecha);
-        return fechaB.getTime() - fechaA.getTime(); // Más recientes primero
+        return -compararFechas(a.fecha, b.fecha); // Más recientes primero (negativo invierte el orden)
       });
     } else {
       eventos =
@@ -215,12 +234,17 @@ export default function DashboardJugador({ user, setUser }) {
                     </span>
                   )}
                   <h4 className="font-semibold text-base sm:text-lg">
-                    {new Date(evento.fecha).toLocaleDateString("es-ES", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {(() => {
+                      const fechaStr = getFechaString(evento.fecha);
+                      const [year, month, day] = fechaStr.split("-");
+                      const fecha = new Date(year, month - 1, day);
+                      return fecha.toLocaleDateString("es-ES", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      });
+                    })()}
                   </h4>
                   {!esEntrenamiento && (
                     <p className="text-gray-800 font-medium text-sm sm:text-base">

@@ -292,7 +292,12 @@ export default function DashboardGestor({ user, setUser }) {
 
   const getEventosDelDia = (fecha) => {
     if (!fecha) return [];
-    const fechaStr = fecha.toISOString().split("T")[0];
+    // Formatear fecha sin conversión de zona horaria
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const fechaStr = `${year}-${month}-${day}`;
+    
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = listaEntrenamientos
@@ -510,7 +515,8 @@ export default function DashboardGestor({ user, setUser }) {
           {dias.map((fecha, index) => {
             const eventosDelDia = fecha ? getEventosDelDia(fecha) : [];
             const hoy = new Date();
-            const esHoy = fecha && 
+            const esHoy =
+              fecha &&
               fecha.getDate() === hoy.getDate() &&
               fecha.getMonth() === hoy.getMonth() &&
               fecha.getFullYear() === hoy.getFullYear();
