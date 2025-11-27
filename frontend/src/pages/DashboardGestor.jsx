@@ -7,26 +7,11 @@ import {
   posiciones as posicionesApi,
 } from "../services/api";
 
-// Helper para extraer fecha en formato YYYY-MM-DD sin conversión de zona horaria
-const getFechaString = (fecha) => {
-  if (!fecha) return "";
-  // Si ya es string, extraer solo la parte de la fecha
-  if (typeof fecha === "string") {
-    return fecha.split("T")[0];
-  }
-  return fecha;
-};
-
-// Helper para comparar fechas sin conversión de zona horaria
-const compararFechas = (fechaStr1, fechaStr2) => {
-  const f1 = getFechaString(fechaStr1);
-  const f2 = getFechaString(fechaStr2);
-  return f1.localeCompare(f2);
-};
-
 export default function DashboardGestor({ user, setUser }) {
   const [activeTab, setActiveTab] = useState("todos");
-  const [vistaMode, setVistaMode] = useState("calendario"); // "lista" o "calendario"
+  // Detectar si es mobile y establecer vista por defecto
+  const isMobile = window.innerWidth < 640; // sm breakpoint de Tailwind
+  const [vistaMode, setVistaMode] = useState(isMobile ? "lista" : "calendario"); // "lista" o "calendario"
   const [listaEntrenamientos, setListaEntrenamientos] = useState([]);
   const [listaPartidos, setListaPartidos] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -294,10 +279,10 @@ export default function DashboardGestor({ user, setUser }) {
     if (!fecha) return [];
     // Formatear fecha sin conversión de zona horaria
     const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
     const fechaStr = `${year}-${month}-${day}`;
-    
+
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = listaEntrenamientos

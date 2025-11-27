@@ -30,7 +30,9 @@ export default function DashboardJugador({ user, setUser }) {
     comentarios: "",
   });
   const [activeTab, setActiveTab] = useState("todos");
-  const [vistaMode, setVistaMode] = useState("calendario");
+  // Detectar si es mobile y establecer vista por defecto
+  const isMobile = window.innerWidth < 640; // sm breakpoint de Tailwind
+  const [vistaMode, setVistaMode] = useState(isMobile ? "lista" : "calendario");
   const [mesActual, setMesActual] = useState(new Date());
   const navigate = useNavigate();
 
@@ -156,10 +158,10 @@ export default function DashboardJugador({ user, setUser }) {
     if (!fecha) return [];
     // Formatear fecha sin conversión de zona horaria
     const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
     const fechaStr = `${year}-${month}-${day}`;
-    
+
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = misEntrenamientos
