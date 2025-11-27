@@ -90,6 +90,9 @@ export default function DetalleAsistencia({ user, setUser }) {
 
   const actualizarAsistencia = async (jugadorId, estado, motivoAusenciaId) => {
     try {
+      // Guardar posición del scroll antes de actualizar
+      const scrollPos = window.scrollY;
+      
       const data = { estado };
       if (motivoAusenciaId) {
         data.motivoAusenciaId = motivoAusenciaId;
@@ -103,6 +106,12 @@ export default function DetalleAsistencia({ user, setUser }) {
 
       // Recargar datos
       await cargarDetalle();
+      
+      // Restaurar posición del scroll después de que se actualice el DOM
+      setTimeout(() => {
+        window.scrollTo(0, scrollPos);
+      }, 0);
+      
       setShowMotivoModal(false);
       setAsistenciaEditar(null);
     } catch (error) {
