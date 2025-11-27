@@ -2,30 +2,6 @@ import pool from "../config/database.js";
 
 export { pool };
 
-// Helper para formatear fechas correctamente (evita problemas de zona horaria)
-const formatearFecha = (fecha) => {
-  if (!fecha) return fecha;
-  if (typeof fecha === 'string') return fecha;
-  // Si es un objeto Date, formatearlo como YYYY-MM-DD sin conversión de zona horaria
-  const d = new Date(fecha);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper para procesar resultados con fechas
-const procesarResultadoConFecha = (row) => {
-  if (!row) return row;
-  if (row.fecha) {
-    row.fecha = formatearFecha(row.fecha);
-  }
-  if (row.fecha_nacimiento) {
-    row.fecha_nacimiento = formatearFecha(row.fecha_nacimiento);
-  }
-  return row;
-};
-
 export const Usuario = {
   async crear(email, password, nombre, rol = "jugador") {
     const result = await pool.query(
@@ -161,7 +137,7 @@ export const Entrenamiento = {
     query += " ORDER BY fecha DESC, hora DESC";
 
     const result = await pool.query(query, params);
-    return result.rows.map(procesarResultadoConFecha);
+    return result.rows;
   },
 
   async buscarPorId(id) {
@@ -169,7 +145,7 @@ export const Entrenamiento = {
       "SELECT *, lugar as ubicacion FROM entrenamientos WHERE id = $1",
       [id]
     );
-    return procesarResultadoConFecha(result.rows[0]);
+    return result.rows[0];
   },
 
   async actualizar(id, datos) {
@@ -232,7 +208,7 @@ export const Partido = {
     query += " ORDER BY fecha DESC, hora DESC";
 
     const result = await pool.query(query, params);
-    return result.rows.map(procesarResultadoConFecha);
+    return result.rows;
   },
 
   async buscarPorId(id) {
@@ -240,7 +216,7 @@ export const Partido = {
       "SELECT *, lugar as ubicacion FROM partidos WHERE id = $1",
       [id]
     );
-    return procesarResultadoConFecha(result.rows[0]);
+    return result.rows[0];
   },
 
   async actualizar(id, datos) {
