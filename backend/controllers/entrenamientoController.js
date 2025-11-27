@@ -5,6 +5,16 @@ import {
   pool,
 } from "../models/index.js";
 
+// Helper para convertir fecha_hora a fecha y hora separados para el frontend
+const formatearFechaHora = (item) => {
+  if (item && item.fecha_hora) {
+    const fecha = new Date(item.fecha_hora);
+    item.fecha = fecha.toISOString(); // Enviar como ISO string completo
+    item.hora = fecha.toTimeString().substring(0, 8); // HH:MM:SS
+  }
+  return item;
+};
+
 export const crearEntrenamiento = async (req, res) => {
   try {
     const { fecha, hora, ubicacion, descripcion, duracionMinutos } = req.body;
@@ -51,8 +61,9 @@ export const listarEntrenamientos = async (req, res) => {
       fechaHasta,
     });
 
-    // Añadir asistencias a cada entrenamiento
+    // Añadir asistencias a cada entrenamiento y formatear fecha_hora
     for (const entrenamiento of entrenamientos) {
+      formatearFechaHora(entrenamiento);
       const asistencias = await AsistenciaEntrenamiento.listarPorEntrenamiento(
         entrenamiento.id
       );
@@ -75,6 +86,7 @@ export const obtenerEntrenamiento = async (req, res) => {
       return res.status(404).json({ error: "Entrenamiento no encontrado" });
     }
 
+    formatearFechaHora(entrenamiento);
     const asistencias = await AsistenciaEntrenamiento.listarPorEntrenamiento(
       id
     );

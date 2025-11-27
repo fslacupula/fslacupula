@@ -3,13 +3,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const { Pool, types } = pg;
+const { Pool } = pg;
 
-// Evitar conversión automática de fechas a objetos Date
-// Mantener las fechas como strings 'YYYY-MM-DD' sin conversión de zona horaria
-types.setTypeParser(1082, (val) => val); // DATE type
-types.setTypeParser(1114, (val) => val); // TIMESTAMP type
-types.setTypeParser(1184, (val) => val); // TIMESTAMPTZ type
+// PostgreSQL devolverá TIMESTAMPTZ como objetos Date en JavaScript
+// que se convertirán automáticamente a la zona horaria local del cliente
 
 // Configuración para Railway (usa DATABASE_URL) o desarrollo local
 const poolConfig = process.env.DATABASE_URL

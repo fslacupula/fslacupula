@@ -113,9 +113,11 @@ export const Jugador = {
 
 export const Entrenamiento = {
   async crear(fecha, hora, ubicacion, descripcion, duracionMinutos, creadoPor) {
+    // Combinar fecha y hora en un timestamp
+    const fechaHora = `${fecha}T${hora}`;
     const result = await pool.query(
-      "INSERT INTO entrenamientos (fecha, hora, lugar, descripcion, duracion_minutos, creado_por) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *, lugar as ubicacion",
-      [fecha, hora, ubicacion, descripcion, duracionMinutos, creadoPor]
+      "INSERT INTO entrenamientos (fecha_hora, lugar, descripcion, duracion_minutos, creado_por) VALUES ($1, $2, $3, $4, $5) RETURNING *, lugar as ubicacion",
+      [fechaHora, ubicacion, descripcion, duracionMinutos, creadoPor]
     );
     return result.rows[0];
   },
@@ -126,15 +128,15 @@ export const Entrenamiento = {
 
     if (filtros.fechaDesde) {
       params.push(filtros.fechaDesde);
-      query += ` AND fecha >= $${params.length}`;
+      query += ` AND fecha_hora >= $${params.length}`;
     }
 
     if (filtros.fechaHasta) {
       params.push(filtros.fechaHasta);
-      query += ` AND fecha <= $${params.length}`;
+      query += ` AND fecha_hora <= $${params.length}`;
     }
 
-    query += " ORDER BY fecha DESC, hora DESC";
+    query += " ORDER BY fecha_hora DESC";
 
     const result = await pool.query(query, params);
     return result.rows;
@@ -150,9 +152,11 @@ export const Entrenamiento = {
 
   async actualizar(id, datos) {
     const { fecha, hora, ubicacion, descripcion, duracionMinutos } = datos;
+    // Combinar fecha y hora en un timestamp
+    const fechaHora = `${fecha}T${hora}`;
     const result = await pool.query(
-      "UPDATE entrenamientos SET fecha = $1, hora = $2, lugar = $3, descripcion = $4, duracion_minutos = $5 WHERE id = $6 RETURNING *, lugar as ubicacion",
-      [fecha, hora, ubicacion, descripcion, duracionMinutos, id]
+      "UPDATE entrenamientos SET fecha_hora = $1, lugar = $2, descripcion = $3, duracion_minutos = $4 WHERE id = $5 RETURNING *, lugar as ubicacion",
+      [fechaHora, ubicacion, descripcion, duracionMinutos, id]
     );
     return result.rows[0];
   },
@@ -174,11 +178,12 @@ export const Partido = {
       resultado,
       observaciones,
     } = datos;
+    // Combinar fecha y hora en un timestamp
+    const fechaHora = `${fecha}T${hora}`;
     const result = await pool.query(
-      "INSERT INTO partidos (fecha, hora, rival, lugar, tipo, es_local, resultado, observaciones, creado_por) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *, lugar as ubicacion",
+      "INSERT INTO partidos (fecha_hora, rival, lugar, tipo, es_local, resultado, observaciones, creado_por) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *, lugar as ubicacion",
       [
-        fecha,
-        hora,
+        fechaHora,
         rival,
         ubicacion,
         tipo,
@@ -197,15 +202,15 @@ export const Partido = {
 
     if (filtros.fechaDesde) {
       params.push(filtros.fechaDesde);
-      query += ` AND fecha >= $${params.length}`;
+      query += ` AND fecha_hora >= $${params.length}`;
     }
 
     if (filtros.fechaHasta) {
       params.push(filtros.fechaHasta);
-      query += ` AND fecha <= $${params.length}`;
+      query += ` AND fecha_hora <= $${params.length}`;
     }
 
-    query += " ORDER BY fecha DESC, hora DESC";
+    query += " ORDER BY fecha_hora DESC";
 
     const result = await pool.query(query, params);
     return result.rows;
@@ -230,11 +235,12 @@ export const Partido = {
       resultado,
       observaciones,
     } = datos;
+    // Combinar fecha y hora en un timestamp
+    const fechaHora = `${fecha}T${hora}`;
     const result = await pool.query(
-      "UPDATE partidos SET fecha = $1, hora = $2, rival = $3, lugar = $4, tipo = $5, es_local = $6, resultado = $7, observaciones = $8 WHERE id = $9 RETURNING *, lugar as ubicacion",
+      "UPDATE partidos SET fecha_hora = $1, rival = $2, lugar = $3, tipo = $4, es_local = $5, resultado = $6, observaciones = $7 WHERE id = $8 RETURNING *, lugar as ubicacion",
       [
-        fecha,
-        hora,
+        fechaHora,
         rival,
         ubicacion,
         tipo,

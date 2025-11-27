@@ -1,5 +1,15 @@
 import { Partido, AsistenciaPartido, Usuario, pool } from "../models/index.js";
 
+// Helper para convertir fecha_hora a fecha y hora separados para el frontend
+const formatearFechaHora = (item) => {
+  if (item && item.fecha_hora) {
+    const fecha = new Date(item.fecha_hora);
+    item.fecha = fecha.toISOString(); // Enviar como ISO string completo
+    item.hora = fecha.toTimeString().substring(0, 8); // HH:MM:SS
+  }
+  return item;
+};
+
 export const crearPartido = async (req, res) => {
   try {
     const {
@@ -51,8 +61,9 @@ export const listarPartidos = async (req, res) => {
     const { fechaDesde, fechaHasta } = req.query;
     const partidos = await Partido.listar({ fechaDesde, fechaHasta });
 
-    // Añadir asistencias a cada partido
+    // Añadir asistencias a cada partido y formatear fecha_hora
     for (const partido of partidos) {
+      formatearFechaHora(partido);
       const asistencias = await AsistenciaPartido.listarPorPartido(partido.id);
       partido.asistencias = asistencias;
     }
@@ -73,6 +84,7 @@ export const obtenerPartido = async (req, res) => {
       return res.status(404).json({ error: "Partido no encontrado" });
     }
 
+    formatearFechaHora(partido);
     const asistencias = await AsistenciaPartido.listarPorPartido(id);
 
     partido.asistencias = asistencias;
