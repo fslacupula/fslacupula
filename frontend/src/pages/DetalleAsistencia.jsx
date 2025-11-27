@@ -92,7 +92,7 @@ export default function DetalleAsistencia({ user, setUser }) {
     try {
       // Guardar posición del scroll antes de actualizar
       const scrollPos = window.scrollY;
-      
+
       const data = { estado };
       if (motivoAusenciaId) {
         data.motivoAusenciaId = motivoAusenciaId;
@@ -106,12 +106,12 @@ export default function DetalleAsistencia({ user, setUser }) {
 
       // Recargar datos
       await cargarDetalle();
-      
+
       // Restaurar posición del scroll después de que se actualice el DOM
       setTimeout(() => {
         window.scrollTo(0, scrollPos);
       }, 0);
-      
+
       setShowMotivoModal(false);
       setAsistenciaEditar(null);
     } catch (error) {
@@ -305,12 +305,17 @@ export default function DetalleAsistencia({ user, setUser }) {
               <div>
                 <div className="text-xs sm:text-sm text-gray-500">Fecha</div>
                 <div className="font-semibold text-sm sm:text-base">
-                  {new Date(evento.fecha).toLocaleDateString("es-ES", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {(() => {
+                    const fechaStr = evento.fecha.split("T")[0];
+                    const [year, month, day] = fechaStr.split("-");
+                    const fecha = new Date(year, month - 1, day);
+                    return fecha.toLocaleDateString("es-ES", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    });
+                  })()}
                 </div>
               </div>
             </div>
