@@ -1,0 +1,51 @@
+services:
+  # Base de datos PostgreSQL
+  - type: pserv
+    name: futbolclub-db
+    plan: free
+    env: docker
+    region: frankfurt
+    disk:
+      name: futbolclub-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1
+
+  # Backend API
+  - type: web
+    name: futbolclub-api
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: futbolclub-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+    healthCheckPath: /
+
+  # Frontend estático
+  - type: web
+    name: futbolclub-frontend
+    env: static
+    region: frankfurt
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: futbolclub-api
+          envVarKey: RENDER_EXTERNAL_URL
