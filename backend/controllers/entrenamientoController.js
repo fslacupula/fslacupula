@@ -6,11 +6,29 @@ import {
 } from "../models/index.js";
 
 // Helper para convertir fecha_hora a fecha y hora separados para el frontend
+// Usa estándares de Intl.DateTimeFormat para manejo robusto de fechas
 const formatearFechaHora = (item) => {
   if (item && item.fecha_hora) {
     const fecha = new Date(item.fecha_hora);
-    item.fecha = fecha.toISOString(); // Enviar como ISO string completo
-    item.hora = fecha.toTimeString().substring(0, 8); // HH:MM:SS
+
+    // Validar que la fecha sea válida
+    if (isNaN(fecha.getTime())) {
+      console.error("Fecha inválida:", item.fecha_hora);
+      return item;
+    }
+
+    // Enviar fecha_hora completo como ISO string para que el cliente lo convierta
+    item.fecha = item.fecha_hora;
+
+    // Extraer hora en formato local usando Intl.DateTimeFormat para consistencia
+    // Formato 24h con timezone Europe/Madrid explícito
+    item.hora = fecha.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZone: "Europe/Madrid",
+    });
   }
   return item;
 };

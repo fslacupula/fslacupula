@@ -113,8 +113,16 @@ export const Jugador = {
 
 export const Entrenamiento = {
   async crear(fecha, hora, ubicacion, descripcion, duracionMinutos, creadoPor) {
-    // Combinar fecha y hora en un timestamp
+    // Combinar fecha y hora en un timestamp ISO 8601 estándar
+    // Formato: YYYY-MM-DDTHH:MM:SS (PostgreSQL lo convierte a TIMESTAMPTZ)
     const fechaHora = `${fecha}T${hora}`;
+
+    // Validar que el timestamp sea válido antes de insertar
+    const testDate = new Date(fechaHora);
+    if (isNaN(testDate.getTime())) {
+      throw new Error(`Timestamp inválido: ${fechaHora}`);
+    }
+
     const result = await pool.query(
       "INSERT INTO entrenamientos (fecha_hora, lugar, descripcion, duracion_minutos, creado_por) VALUES ($1, $2, $3, $4, $5) RETURNING *, lugar as ubicacion",
       [fechaHora, ubicacion, descripcion, duracionMinutos, creadoPor]
@@ -152,8 +160,15 @@ export const Entrenamiento = {
 
   async actualizar(id, datos) {
     const { fecha, hora, ubicacion, descripcion, duracionMinutos } = datos;
-    // Combinar fecha y hora en un timestamp
+    // Combinar fecha y hora en un timestamp ISO 8601 estándar
     const fechaHora = `${fecha}T${hora}`;
+
+    // Validar que el timestamp sea válido antes de actualizar
+    const testDate = new Date(fechaHora);
+    if (isNaN(testDate.getTime())) {
+      throw new Error(`Timestamp inválido: ${fechaHora}`);
+    }
+
     const result = await pool.query(
       "UPDATE entrenamientos SET fecha_hora = $1, lugar = $2, descripcion = $3, duracion_minutos = $4 WHERE id = $5 RETURNING *, lugar as ubicacion",
       [fechaHora, ubicacion, descripcion, duracionMinutos, id]
@@ -178,8 +193,15 @@ export const Partido = {
       resultado,
       observaciones,
     } = datos;
-    // Combinar fecha y hora en un timestamp
+    // Combinar fecha y hora en un timestamp ISO 8601 estándar
     const fechaHora = `${fecha}T${hora}`;
+
+    // Validar que el timestamp sea válido antes de insertar
+    const testDate = new Date(fechaHora);
+    if (isNaN(testDate.getTime())) {
+      throw new Error(`Timestamp inválido: ${fechaHora}`);
+    }
+
     const result = await pool.query(
       "INSERT INTO partidos (fecha_hora, rival, lugar, tipo, es_local, resultado, observaciones, creado_por) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *, lugar as ubicacion",
       [
@@ -235,20 +257,18 @@ export const Partido = {
       resultado,
       observaciones,
     } = datos;
-    // Combinar fecha y hora en un timestamp
+    // Combinar fecha y hora en un timestamp ISO 8601 estándar
     const fechaHora = `${fecha}T${hora}`;
+
+    // Validar que el timestamp sea válido antes de actualizar
+    const testDate = new Date(fechaHora);
+    if (isNaN(testDate.getTime())) {
+      throw new Error(`Timestamp inválido: ${fechaHora}`);
+    }
+
     const result = await pool.query(
       "UPDATE partidos SET fecha_hora = $1, rival = $2, lugar = $3, tipo = $4, es_local = $5, resultado = $6, observaciones = $7 WHERE id = $8 RETURNING *, lugar as ubicacion",
-      [
-        fechaHora,
-        rival,
-        ubicacion,
-        tipo,
-        esLocal,
-        resultado,
-        observaciones,
-        id,
-      ]
+      [fechaHora, rival, ubicacion, tipo, esLocal, resultado, observaciones, id]
     );
     return result.rows[0];
   },
