@@ -6,8 +6,10 @@ dotenv.config();
 const { Pool, types } = pg;
 
 // Evitar conversión automática de fechas a objetos Date
-// Esto mantiene las fechas como strings 'YYYY-MM-DD'
+// Mantener las fechas como strings 'YYYY-MM-DD' sin conversión de zona horaria
 types.setTypeParser(1082, (val) => val); // DATE type
+types.setTypeParser(1114, (val) => val); // TIMESTAMP type
+types.setTypeParser(1184, (val) => val); // TIMESTAMPTZ type
 
 // Configuración para Railway (usa DATABASE_URL) o desarrollo local
 const poolConfig = process.env.DATABASE_URL
