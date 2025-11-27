@@ -27,8 +27,14 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
-pool.on("connect", () => {
-  console.log("✅ Conectado a PostgreSQL");
+// Configurar zona horaria al conectar
+pool.on("connect", async (client) => {
+  try {
+    await client.query("SET timezone = 'Europe/Madrid'");
+    console.log("✅ Conectado a PostgreSQL (Europe/Madrid)");
+  } catch (err) {
+    console.error("❌ Error configurando timezone:", err);
+  }
 });
 
 pool.on("error", (err) => {
