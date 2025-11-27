@@ -7,6 +7,23 @@ import {
   posiciones as posicionesApi,
 } from "../services/api";
 
+// Helper para extraer fecha en formato YYYY-MM-DD sin conversión de zona horaria
+const getFechaString = (fecha) => {
+  if (!fecha) return "";
+  // Si ya es string, extraer solo la parte de la fecha
+  if (typeof fecha === "string") {
+    return fecha.split("T")[0];
+  }
+  return fecha;
+};
+
+// Helper para comparar fechas sin conversión de zona horaria
+const compararFechas = (fechaStr1, fechaStr2) => {
+  const f1 = getFechaString(fechaStr1);
+  const f2 = getFechaString(fechaStr2);
+  return f1.localeCompare(f2);
+};
+
 export default function DashboardGestor({ user, setUser }) {
   const [activeTab, setActiveTab] = useState("todos");
   const [vistaMode, setVistaMode] = useState("calendario"); // "lista" o "calendario"
@@ -279,10 +296,10 @@ export default function DashboardGestor({ user, setUser }) {
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = listaEntrenamientos
-        .filter((e) => e.fecha.split("T")[0] === fechaStr)
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
         .map((e) => ({ ...e, tipoEvento: "entrenamientos" }));
       const partidos = listaPartidos
-        .filter((e) => e.fecha.split("T")[0] === fechaStr)
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
         .map((e) => ({ ...e, tipoEvento: "partidos" }));
       eventos = [...entrenamientos, ...partidos].sort((a, b) =>
         a.hora.localeCompare(b.hora)
@@ -290,7 +307,7 @@ export default function DashboardGestor({ user, setUser }) {
     } else {
       eventos =
         activeTab === "entrenamientos" ? listaEntrenamientos : listaPartidos;
-      eventos = eventos.filter((e) => e.fecha.split("T")[0] === fechaStr);
+      eventos = eventos.filter((e) => getFechaString(e.fecha) === fechaStr);
     }
     return eventos;
   };
@@ -315,9 +332,7 @@ export default function DashboardGestor({ user, setUser }) {
         tipoEvento: "partidos",
       }));
       eventos = [...entrenamientosConTipo, ...partidosConTipo].sort((a, b) => {
-        const fechaA = new Date(a.fecha);
-        const fechaB = new Date(b.fecha);
-        return fechaB.getTime() - fechaA.getTime(); // Más recientes primero
+        return -compararFechas(a.fecha, b.fecha); // Más recientes primero (negativo invierte el orden)
       });
     } else {
       eventos =
@@ -354,12 +369,17 @@ export default function DashboardGestor({ user, setUser }) {
                       </span>
                     )}
                     <h4 className="font-semibold text-xl sm:text-lg">
-                      {new Date(evento.fecha).toLocaleDateString("es-ES", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {(() => {
+                        const fechaStr = getFechaString(evento.fecha);
+                        const [year, month, day] = fechaStr.split("-");
+                        const fecha = new Date(year, month - 1, day);
+                        return fecha.toLocaleDateString("es-ES", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        });
+                      })()}
                     </h4>
                     {!esEntrenamiento && (
                       <p className="text-gray-800 font-medium text-lg sm:text-base">
@@ -489,8 +509,11 @@ export default function DashboardGestor({ user, setUser }) {
         <div className="grid grid-cols-7 gap-0.5 sm:gap-2">
           {dias.map((fecha, index) => {
             const eventosDelDia = fecha ? getEventosDelDia(fecha) : [];
-            const esHoy =
-              fecha && fecha.toDateString() === new Date().toDateString();
+            const hoy = new Date();
+            const esHoy = fecha && 
+              fecha.getDate() === hoy.getDate() &&
+              fecha.getMonth() === hoy.getMonth() &&
+              fecha.getFullYear() === hoy.getFullYear();
 
             return (
               <div
