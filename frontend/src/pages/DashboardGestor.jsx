@@ -294,10 +294,10 @@ export default function DashboardGestor({ user, setUser }) {
     if (!fecha) return [];
     // Formatear fecha sin conversión de zona horaria
     const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
     const fechaStr = `${year}-${month}-${day}`;
-    
+
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = listaEntrenamientos
@@ -721,35 +721,6 @@ export default function DashboardGestor({ user, setUser }) {
             >
               + Registrar Jugador
             </button>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() =>
-                  abrirModal(
-                    null,
-                    activeTab === "todos" ? "entrenamiento" : activeTab
-                  )
-                }
-                className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 text-sm sm:text-base"
-              >
-                + Nuevo{" "}
-                {activeTab === "entrenamientos"
-                  ? "Entrenamiento"
-                  : activeTab === "partidos"
-                  ? "Partido"
-                  : "Evento"}
-              </button>
-              <button
-                onClick={() => navigate("/alineacion")}
-                className="bg-blue-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-blue-600 text-sm sm:text-base flex items-center gap-2"
-              >
-                🏟️ Ver Pista
-              </button>
-            </div>
-          )}
-            >
-              + Registrar Jugador
-            </button>
           ) : activeTab === "todos" ? (
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
@@ -764,15 +735,29 @@ export default function DashboardGestor({ user, setUser }) {
               >
                 + Crear Partido
               </button>
+              <button
+                onClick={() => navigate("/alineacion")}
+                className="bg-purple-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-purple-600 text-sm sm:text-base flex items-center justify-center gap-2"
+              >
+                🏟️ Ver Pista
+              </button>
             </div>
           ) : (
-            <button
-              onClick={() => abrirModal()}
-              className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 w-full sm:w-auto text-sm sm:text-base"
-            >
-              + Crear{" "}
-              {activeTab === "entrenamientos" ? "Entrenamiento" : "Partido"}
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => abrirModal()}
+                className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 text-sm sm:text-base"
+              >
+                + Crear{" "}
+                {activeTab === "entrenamientos" ? "Entrenamiento" : "Partido"}
+              </button>
+              <button
+                onClick={() => navigate("/alineacion")}
+                className="bg-purple-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-purple-600 text-sm sm:text-base flex items-center gap-2"
+              >
+                🏟️ Ver Pista
+              </button>
+            </div>
           )}
         </div>
 

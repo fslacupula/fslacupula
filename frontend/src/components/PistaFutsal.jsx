@@ -34,13 +34,16 @@ export default function PistaFutsal({ jugadores = [] }) {
     };
 
     const colorClass =
-      colorClasses[jugador.color?.toLowerCase()] || "bg-gray-500 border-gray-700";
+      colorClasses[jugador.color?.toLowerCase()] ||
+      "bg-gray-500 border-gray-700";
 
     return (
       <div key={jugador.id || index} className="flex flex-col items-center">
         <div
           className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${colorClass} border-2 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg`}
-          title={`${jugador.nombre} ${jugador.dorsal ? `(#${jugador.dorsal})` : ""}`}
+          title={`${jugador.nombre} ${
+            jugador.dorsal ? `(#${jugador.dorsal})` : ""
+          }`}
         >
           {iniciales}
         </div>
@@ -58,23 +61,23 @@ export default function PistaFutsal({ jugadores = [] }) {
       {/* Pista de fútbol sala */}
       <div className="relative bg-gradient-to-b from-green-600 to-green-700 rounded-lg shadow-2xl p-4 sm:p-6 aspect-[2/3]">
         {/* Líneas de la pista */}
-        
+
         {/* Línea central horizontal */}
         <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-white/70"></div>
-        
+
         {/* Círculo central */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 border-2 border-white/70 rounded-full"></div>
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white/70 rounded-full"></div>
 
         {/* Área inferior (portería propia) */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/5 h-1/6 border-2 border-t-white/70 border-x-white/70 border-b-0 rounded-t-lg"></div>
-        
+
         {/* Portería inferior */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/4 h-2 bg-white/90 rounded-t"></div>
 
         {/* Área superior (portería rival) */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/5 h-1/6 border-2 border-b-white/70 border-x-white/70 border-t-0 rounded-b-lg"></div>
-        
+
         {/* Portería superior */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/4 h-2 bg-white/90 rounded-b"></div>
 
