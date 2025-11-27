@@ -721,6 +721,35 @@ export default function DashboardGestor({ user, setUser }) {
             >
               + Registrar Jugador
             </button>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() =>
+                  abrirModal(
+                    null,
+                    activeTab === "todos" ? "entrenamiento" : activeTab
+                  )
+                }
+                className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 text-sm sm:text-base"
+              >
+                + Nuevo{" "}
+                {activeTab === "entrenamientos"
+                  ? "Entrenamiento"
+                  : activeTab === "partidos"
+                  ? "Partido"
+                  : "Evento"}
+              </button>
+              <button
+                onClick={() => navigate("/alineacion")}
+                className="bg-blue-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-blue-600 text-sm sm:text-base flex items-center gap-2"
+              >
+                🏟️ Ver Pista
+              </button>
+            </div>
+          )}
+            >
+              + Registrar Jugador
+            </button>
           ) : activeTab === "todos" ? (
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button

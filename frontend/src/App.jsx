@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import DashboardJugador from "./pages/DashboardJugador";
 import DashboardGestor from "./pages/DashboardGestor";
 import DetalleAsistencia from "./pages/DetalleAsistencia";
+import Alineacion from "./pages/Alineacion";
 import { auth } from "./services/api";
 
 function App() {
@@ -79,6 +80,16 @@ function App() {
           element={
             user ? (
               <DetalleAsistencia user={user} setUser={setUser} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/alineacion"
+          element={
+            user ? (
+              <Alineacion user={user} setUser={setUser} />
             ) : (
               <Navigate to="/login" />
             )
