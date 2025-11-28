@@ -11,6 +11,8 @@ export default function PistaFutsal({
   onDrop,
   onJugadorDragStart,
   estadisticas = {},
+  posicionSeleccionada = null,
+  onPosicionSeleccionar,
 }) {
   // Agrupar jugadores por posición
   const porteros = jugadores.filter((j) => j.posicion === "Portero");
@@ -20,8 +22,16 @@ export default function PistaFutsal({
   const alaPivots = jugadores.filter((j) => j.posicion === "Ala-Pivot");
 
   const handlePosicionClick = (posicion) => {
-    if (onPosicionClick) {
+    // Si hay un jugador, quitarlo (comportamiento original)
+    if (onPosicionClick && jugadoresAsignados[posicion]) {
       onPosicionClick(posicion);
+    }
+    // Si no hay jugador y hay callback de selección, activar/desactivar selección de posición
+    else if (onPosicionSeleccionar && !jugadoresAsignados[posicion]) {
+      // Toggle: si ya está seleccionada, deseleccionar; si no, seleccionar
+      onPosicionSeleccionar(
+        posicionSeleccionada === posicion ? null : posicion
+      );
     }
   };
 
@@ -218,7 +228,16 @@ export default function PistaFutsal({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, "Portero")}
           onClick={() => handlePosicionClick("Portero")}
-          className="absolute left-[5%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer"
+          className={`absolute left-[5%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer ${
+            posicionSeleccionada === "Portero"
+              ? "ring-4 ring-green-400 rounded-full scale-125 animate-pulse"
+              : ""
+          }`}
+          title={
+            posicionSeleccionada === "Portero"
+              ? "Posición seleccionada - Click en un jugador para asignar"
+              : "Click para seleccionar posición o arrastrar jugador aquí"
+          }
         >
           {jugadoresAsignados.Portero ? (
             <div
@@ -270,7 +289,16 @@ export default function PistaFutsal({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, "Cierre")}
           onClick={() => handlePosicionClick("Cierre")}
-          className="absolute left-[22%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer"
+          className={`absolute left-[22%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer ${
+            posicionSeleccionada === "Cierre"
+              ? "ring-4 ring-green-400 rounded-full scale-125 animate-pulse"
+              : ""
+          }`}
+          title={
+            posicionSeleccionada === "Cierre"
+              ? "Posición seleccionada - Click en un jugador para asignar"
+              : "Click para seleccionar posición o arrastrar jugador aquí"
+          }
         >
           {jugadoresAsignados.Cierre ? (
             <div
@@ -322,7 +350,16 @@ export default function PistaFutsal({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, "Ala Superior")}
           onClick={() => handlePosicionClick("Ala Superior")}
-          className="absolute left-[38%] top-[15%] z-10 hover:scale-110 transition-transform cursor-pointer"
+          className={`absolute left-[38%] top-[15%] z-10 hover:scale-110 transition-transform cursor-pointer ${
+            posicionSeleccionada === "Ala Superior"
+              ? "ring-4 ring-green-400 rounded-full scale-125 animate-pulse"
+              : ""
+          }`}
+          title={
+            posicionSeleccionada === "Ala Superior"
+              ? "Posición seleccionada - Click en un jugador para asignar"
+              : "Click para seleccionar posición o arrastrar jugador aquí"
+          }
         >
           {jugadoresAsignados["Ala Superior"] ? (
             <div
@@ -377,7 +414,16 @@ export default function PistaFutsal({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, "Ala Inferior")}
           onClick={() => handlePosicionClick("Ala Inferior")}
-          className="absolute left-[38%] bottom-[15%] z-10 hover:scale-110 transition-transform cursor-pointer"
+          className={`absolute left-[38%] bottom-[15%] z-10 hover:scale-110 transition-transform cursor-pointer ${
+            posicionSeleccionada === "Ala Inferior"
+              ? "ring-4 ring-green-400 rounded-full scale-125 animate-pulse"
+              : ""
+          }`}
+          title={
+            posicionSeleccionada === "Ala Inferior"
+              ? "Posición seleccionada - Click en un jugador para asignar"
+              : "Click para seleccionar posición o arrastrar jugador aquí"
+          }
         >
           {jugadoresAsignados["Ala Inferior"] ? (
             <div
@@ -432,7 +478,16 @@ export default function PistaFutsal({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, "Pívot")}
           onClick={() => handlePosicionClick("Pívot")}
-          className="absolute right-[22%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer"
+          className={`absolute left-[60%] top-1/2 -translate-y-1/2 z-10 hover:scale-110 transition-transform cursor-pointer ${
+            posicionSeleccionada === "Pívot"
+              ? "ring-4 ring-green-400 rounded-full scale-125 animate-pulse"
+              : ""
+          }`}
+          title={
+            posicionSeleccionada === "Pívot"
+              ? "Posición seleccionada - Click en un jugador para asignar"
+              : "Click para seleccionar posición o arrastrar jugador aquí"
+          }
         >
           {jugadoresAsignados.Pívot ? (
             <div

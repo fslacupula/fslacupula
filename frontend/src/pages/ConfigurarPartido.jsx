@@ -37,6 +37,7 @@ function ConfigurarPartido() {
   const [partidoId, setPartidoId] = useState(null);
   const [partidoInfo, setPartidoInfo] = useState(null);
   const [accionActiva, setAccionActiva] = useState(null); // null | "amarilla" | "roja" | "gol" | "falta"
+  const [posicionSeleccionada, setPosicionSeleccionada] = useState(null); // null | "portero" | "cierre" | "alaSuperior" | "alaInferior" | "pivote"
 
   useEffect(() => {
     cargarDatos();
@@ -357,6 +358,14 @@ function ConfigurarPartido() {
     registrarAccion(jugador, tipoAccion);
     // Desactivar modo de selección después de aplicar la acción
     setAccionActiva(null);
+  };
+
+  // Asignar jugador a posición desde modo click
+  const asignarJugadorAPosicion = (jugador, posicion) => {
+    if (!jugador || !posicion) return;
+    handleDrop(jugador, posicion);
+    // Desactivar modo de selección de posición
+    setPosicionSeleccionada(null);
   };
 
   const handleAccionDrop = (e, accion) => {
@@ -1048,17 +1057,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-E",
-                        nombre: "Entrenador",
-                        numero_dorsal: "E",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-E",
+                          nombre: "Entrenador",
+                          numero_dorsal: "E",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Entrenador - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Entrenador - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-E"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1087,17 +1105,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-D",
-                        nombre: "Delegado",
-                        numero_dorsal: "D",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-D",
+                          nombre: "Delegado",
+                          numero_dorsal: "D",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Delegado - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Delegado - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-D"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1126,17 +1153,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-A",
-                        nombre: "Auxiliar",
-                        numero_dorsal: "A",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-A",
+                          nombre: "Auxiliar",
+                          numero_dorsal: "A",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Auxiliar - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Auxiliar - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-A"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1209,6 +1245,11 @@ function ConfigurarPartido() {
                           onClick={() => {
                             if (accionActiva) {
                               ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
                             }
                           }}
                           className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
@@ -1216,6 +1257,8 @@ function ConfigurarPartido() {
                               ? "border-gray-500 opacity-50 cursor-grab"
                               : accionActiva
                               ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
                               : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
                           } ${debeAnimarse ? "scale-125" : ""}`}
                           style={{
@@ -1223,7 +1266,13 @@ function ConfigurarPartido() {
                               ? "#9ca3af"
                               : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
                           }}
-                          title={accionActiva ? `Click para aplicar ${accionActiva}` : "Arrastra a la pista o a zona de acciones"}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
                         >
                           {/* Mostrar balones según número de goles */}
                           {Array.from({ length: Math.min(numGoles, 4) }).map(
@@ -1343,6 +1392,11 @@ function ConfigurarPartido() {
                           onClick={() => {
                             if (accionActiva) {
                               ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
                             }
                           }}
                           className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
@@ -1350,6 +1404,8 @@ function ConfigurarPartido() {
                               ? "border-gray-500 opacity-50 cursor-grab"
                               : accionActiva
                               ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
                               : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
                           } ${debeAnimarse ? "scale-125" : ""}`}
                           style={{
@@ -1357,7 +1413,13 @@ function ConfigurarPartido() {
                               ? "#9ca3af"
                               : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
                           }}
-                          title={accionActiva ? `Click para aplicar ${accionActiva}` : "Arrastra a la pista o a zona de acciones"}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
                         >
                           {/* Mostrar balones según número de goles */}
                           {Array.from({ length: Math.min(numGoles, 4) }).map(
@@ -1473,6 +1535,11 @@ function ConfigurarPartido() {
                           onClick={() => {
                             if (accionActiva) {
                               ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
                             }
                           }}
                           className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
@@ -1480,6 +1547,8 @@ function ConfigurarPartido() {
                               ? "border-gray-500 opacity-50 cursor-grab"
                               : accionActiva
                               ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
                               : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
                           } ${debeAnimarse ? "scale-125" : ""}`}
                           style={{
@@ -1487,7 +1556,13 @@ function ConfigurarPartido() {
                               ? "#9ca3af"
                               : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
                           }}
-                          title={accionActiva ? `Click para aplicar ${accionActiva}` : "Arrastra a la pista o a zona de acciones"}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
                         >
                           {/* Mostrar balones según número de goles */}
                           {Array.from({ length: Math.min(numGoles, 4) }).map(
@@ -1558,6 +1633,8 @@ function ConfigurarPartido() {
                 onJugadorDragStart={handleDragStart}
                 estadisticas={estadisticas}
                 onPosicionClick={handlePosicionClick}
+                posicionSeleccionada={posicionSeleccionada}
+                onPosicionSeleccionar={setPosicionSeleccionada}
               />
 
               {/* Botones de acción debajo de la pista */}
@@ -1584,13 +1661,19 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "gol")}
-                  onClick={() => setAccionActiva(accionActiva === "gol" ? null : "gol")}
+                  onClick={() =>
+                    setAccionActiva(accionActiva === "gol" ? null : "gol")
+                  }
                   className={`w-24 h-[74px] bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "gol"
                       ? "ring-4 ring-green-300 scale-110 animate-pulse border-white"
                       : "border-transparent hover:border-white"
                   }`}
-                  title={accionActiva === "gol" ? "Click en un jugador para anotar gol" : "Click para activar o arrastra jugador aquí"}
+                  title={
+                    accionActiva === "gol"
+                      ? "Click en un jugador para anotar gol"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
                 >
                   <svg
                     className="w-12 h-12"
@@ -1603,13 +1686,19 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "falta")}
-                  onClick={() => setAccionActiva(accionActiva === "falta" ? null : "falta")}
+                  onClick={() =>
+                    setAccionActiva(accionActiva === "falta" ? null : "falta")
+                  }
                   className={`w-24 h-[74px] bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "falta"
                       ? "ring-4 ring-orange-300 scale-110 animate-pulse border-white"
                       : "border-transparent hover:border-white"
                   }`}
-                  title={accionActiva === "falta" ? "Click en un jugador para anotar falta" : "Click para activar o arrastra jugador aquí"}
+                  title={
+                    accionActiva === "falta"
+                      ? "Click en un jugador para anotar falta"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
                 >
                   <svg
                     className="w-10 h-10"
@@ -1628,13 +1717,21 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "amarilla")}
-                  onClick={() => setAccionActiva(accionActiva === "amarilla" ? null : "amarilla")}
+                  onClick={() =>
+                    setAccionActiva(
+                      accionActiva === "amarilla" ? null : "amarilla"
+                    )
+                  }
                   className={`w-24 h-[74px] bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "amarilla"
                       ? "ring-4 ring-yellow-300 scale-110 animate-pulse border-gray-800"
                       : "border-transparent hover:border-gray-800"
                   }`}
-                  title={accionActiva === "amarilla" ? "Click en un jugador para tarjeta amarilla" : "Click para activar o arrastra jugador aquí"}
+                  title={
+                    accionActiva === "amarilla"
+                      ? "Click en un jugador para tarjeta amarilla"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
                 >
                   <svg
                     className="w-10 h-10"
@@ -1654,13 +1751,19 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "roja")}
-                  onClick={() => setAccionActiva(accionActiva === "roja" ? null : "roja")}
+                  onClick={() =>
+                    setAccionActiva(accionActiva === "roja" ? null : "roja")
+                  }
                   className={`w-24 h-[74px] bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "roja"
                       ? "ring-4 ring-red-300 scale-110 animate-pulse border-white"
                       : "border-transparent hover:border-white"
                   }`}
-                  title={accionActiva === "roja" ? "Click en un jugador para tarjeta roja" : "Click para activar o arrastra jugador aquí"}
+                  title={
+                    accionActiva === "roja"
+                      ? "Click en un jugador para tarjeta roja"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
                 >
                   <svg
                     className="w-10 h-10"
@@ -1703,17 +1806,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-visitante-E",
-                        nombre: "Entrenador Visitante",
-                        numero_dorsal: "E",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-E",
+                          nombre: "Entrenador Visitante",
+                          numero_dorsal: "E",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Entrenador Visitante - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Entrenador Visitante - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-visitante-E"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1742,17 +1854,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-visitante-D",
-                        nombre: "Delegado Visitante",
-                        numero_dorsal: "D",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-D",
+                          nombre: "Delegado Visitante",
+                          numero_dorsal: "D",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Delegado Visitante - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Delegado Visitante - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-visitante-D"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1781,17 +1902,26 @@ function ConfigurarPartido() {
                   }}
                   onClick={() => {
                     if (accionActiva) {
-                      ejecutarAccion({
-                        id: "staff-visitante-A",
-                        nombre: "Auxiliar Visitante",
-                        numero_dorsal: "A",
-                      }, accionActiva);
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-A",
+                          nombre: "Auxiliar Visitante",
+                          numero_dorsal: "A",
+                        },
+                        accionActiva
+                      );
                     }
                   }}
                   className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva ? "cursor-pointer hover:ring-4 hover:ring-amber-300" : "cursor-grab active:cursor-grabbing"
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
                   }`}
-                  title={accionActiva ? `Click para aplicar ${accionActiva}` : "Auxiliar Visitante - Arrastra para asignar tarjeta"}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Auxiliar Visitante - Arrastra para asignar tarjeta"
+                  }
                 >
                   {estadisticas["staff-visitante-A"]?.rojas > 0 ? (
                     <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
@@ -1835,11 +1965,14 @@ function ConfigurarPartido() {
                         }}
                         onClick={() => {
                           if (accionActiva && editandoDorsal !== numero) {
-                            ejecutarAccion({
-                              id: jugadorId,
-                              nombre: `Visitante ${dorsalMostrado}`,
-                              numero_dorsal: dorsalMostrado,
-                            }, accionActiva);
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
                           } else if (!accionActiva) {
                             setEditandoDorsal(numero);
                           }
@@ -1852,7 +1985,12 @@ function ConfigurarPartido() {
                             : "hover:scale-110 hover:border-blue-500"
                         }`}
                         style={{
-                          cursor: editandoDorsal === numero ? "text" : accionActiva ? "pointer" : "grab",
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva
+                              ? "pointer"
+                              : "grab",
                         }}
                         title={
                           editandoDorsal === numero
@@ -1926,11 +2064,14 @@ function ConfigurarPartido() {
                         }}
                         onClick={() => {
                           if (accionActiva && editandoDorsal !== numero) {
-                            ejecutarAccion({
-                              id: jugadorId,
-                              nombre: `Visitante ${dorsalMostrado}`,
-                              numero_dorsal: dorsalMostrado,
-                            }, accionActiva);
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
                           } else if (!accionActiva) {
                             setEditandoDorsal(numero);
                           }
@@ -1943,7 +2084,12 @@ function ConfigurarPartido() {
                             : "hover:scale-110 hover:border-blue-500"
                         }`}
                         style={{
-                          cursor: editandoDorsal === numero ? "text" : accionActiva ? "pointer" : "grab",
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva
+                              ? "pointer"
+                              : "grab",
                         }}
                         title={
                           editandoDorsal === numero
@@ -2017,11 +2163,14 @@ function ConfigurarPartido() {
                         }}
                         onClick={() => {
                           if (accionActiva && editandoDorsal !== numero) {
-                            ejecutarAccion({
-                              id: jugadorId,
-                              nombre: `Visitante ${dorsalMostrado}`,
-                              numero_dorsal: dorsalMostrado,
-                            }, accionActiva);
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
                           } else if (!accionActiva) {
                             setEditandoDorsal(numero);
                           }
@@ -2034,7 +2183,12 @@ function ConfigurarPartido() {
                             : "hover:scale-110 hover:border-blue-500"
                         }`}
                         style={{
-                          cursor: editandoDorsal === numero ? "text" : accionActiva ? "pointer" : "grab",
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva
+                              ? "pointer"
+                              : "grab",
                         }}
                         title={
                           editandoDorsal === numero
