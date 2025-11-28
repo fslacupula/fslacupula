@@ -290,15 +290,44 @@ export default function DetalleAsistencia({ user, setUser }) {
                 </p>
               )}
             </div>
-            <div className="text-left sm:text-right">
-              <div className="text-xs sm:text-sm text-gray-500 uppercase mb-1">
+            <div className="text-left sm:text-right flex flex-col gap-2">
+              <div className="text-xs sm:text-sm text-gray-500 uppercase">
                 {tipo === "partidos" || tipo === "partido"
                   ? evento.tipo
                   : "Entrenamiento"}
               </div>
+              {user.rol === "gestor" &&
+                tipo === "partidos" &&
+                evento.asistencias &&
+                evento.asistencias.filter((a) => a.estado === "confirmado")
+                  .length > 0 && (
+                  <button
+                    onClick={() => navigate(`/configurar-partido/${id}`)}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
+                    title={`Configurar partido (${
+                      evento.asistencias.filter(
+                        (a) => a.estado === "confirmado"
+                      ).length
+                    } confirmados)`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
+                      />
+                    </svg>
+                    Configurar Partido
+                  </button>
+                )}
             </div>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl sm:text-2xl">📅</span>

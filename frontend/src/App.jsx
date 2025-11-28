@@ -11,6 +11,7 @@ import DashboardJugador from "./pages/DashboardJugador";
 import DashboardGestor from "./pages/DashboardGestor";
 import DetalleAsistencia from "./pages/DetalleAsistencia";
 import Alineacion from "./pages/Alineacion";
+import ConfigurarPartido from "./pages/ConfigurarPartido";
 import { auth } from "./services/api";
 
 function App() {
@@ -90,6 +91,16 @@ function App() {
           element={
             user ? (
               <Alineacion user={user} setUser={setUser} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/configurar-partido/:partidoId?"
+          element={
+            user && user.rol === "gestor" ? (
+              <ConfigurarPartido user={user} setUser={setUser} />
             ) : (
               <Navigate to="/login" />
             )

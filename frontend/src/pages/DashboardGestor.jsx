@@ -735,29 +735,29 @@ export default function DashboardGestor({ user, setUser }) {
               >
                 + Crear Partido
               </button>
-              <button
-                onClick={() => navigate("/alineacion")}
-                className="bg-purple-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-purple-600 text-sm sm:text-base flex items-center justify-center gap-2"
-              >
-                🏟️ Ver Pista
-              </button>
             </div>
-          ) : (
+          ) : activeTab === "partidos" ? (
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => abrirModal()}
                 className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 text-sm sm:text-base"
               >
-                + Crear{" "}
-                {activeTab === "entrenamientos" ? "Entrenamiento" : "Partido"}
+                + Crear Partido
               </button>
               <button
-                onClick={() => navigate("/alineacion")}
+                onClick={() => navigate("/configurar-partido")}
                 className="bg-purple-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-purple-600 text-sm sm:text-base flex items-center gap-2"
               >
-                🏟️ Ver Pista
+                ⚙️ Configurar Partido
               </button>
             </div>
+          ) : (
+            <button
+              onClick={() => abrirModal()}
+              className="bg-green-500 text-white px-4 sm:px-6 py-2 rounded hover:bg-green-600 text-sm sm:text-base"
+            >
+              + Crear Entrenamiento
+            </button>
           )}
         </div>
 
