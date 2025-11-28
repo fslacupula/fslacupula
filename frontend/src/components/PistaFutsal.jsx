@@ -25,13 +25,13 @@ export default function PistaFutsal({
 
   const handlePosicionClick = (posicion) => {
     const jugadorEnPosicion = jugadoresAsignados[posicion];
-    
+
     // Si hay acción activa y hay un jugador, ejecutar la acción en el jugador
     if (accionActiva && jugadorEnPosicion && onJugadorClick) {
       onJugadorClick(jugadorEnPosicion);
       return;
     }
-    
+
     // Si hay un jugador y NO hay acción activa, quitarlo (comportamiento original)
     if (onPosicionClick && jugadorEnPosicion && !accionActiva) {
       onPosicionClick(posicion);

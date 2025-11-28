@@ -83,70 +83,39 @@ function Marcador({
     setGolesVisitante((prev) => Math.max(0, prev - 1));
 
   return (
-    <div className="bg-gradient-to-r from-blue-900 to-blue-700 rounded-lg shadow-xl p-6 mb-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="bg-black rounded-lg shadow-xl p-6 mb-6 border-4 border-gray-800">
+      <div className="flex items-center justify-between gap-6">
         {/* Equipo Local */}
         <div className="flex-1 text-center">
-          <h3 className="text-white text-xl font-bold mb-2 uppercase tracking-wide">
+          <h3 className="text-white text-xl font-bold mb-3 uppercase tracking-wider">
             {equipoLocal}
           </h3>
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={decrementarLocal}
-              className="bg-red-500 hover:bg-red-600 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
             >
               -
             </button>
             <div
-              className={`bg-white text-gray-900 text-5xl font-bold px-6 py-4 rounded-lg shadow-inner min-w-[100px] transition-all duration-300 ${
-                flashGolLocal ? "scale-125 bg-yellow-300 shadow-2xl" : ""
+              className={`bg-black text-yellow-400 text-6xl font-bold px-6 py-4 rounded-lg shadow-inner min-w-[100px] border-2 border-gray-700 transition-all duration-300 ${
+                flashGolLocal ? "scale-125 text-yellow-300 shadow-2xl shadow-yellow-400/50" : ""
               }`}
+              style={{ fontFamily: "'Orbitron', monospace", letterSpacing: '0.1em' }}
             >
-              {golesLocal}
+              {String(golesLocal).padStart(2, '0')}
             </div>
             <button
               onClick={incrementarLocal}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
             >
               +
             </button>
           </div>
-          {/* Indicador de faltas - 5 bolas */}
-          <div
-            className={`flex gap-1 mt-2 justify-center transition-all duration-300 ${
-              flashFaltasLocal ? "scale-110" : ""
-            }`}
-          >
-            {[1, 2, 3, 4, 5].map((i) => {
-              let bgColor = "";
-              let borderColor = "";
-              if (i <= 3) {
-                bgColor = i <= faltasLocal ? "bg-green-500" : "bg-green-500/30";
-                borderColor = "border-green-700";
-              } else if (i === 4) {
-                bgColor =
-                  i <= faltasLocal ? "bg-yellow-500" : "bg-yellow-500/30";
-                borderColor = "border-yellow-600";
-              } else {
-                bgColor = i <= faltasLocal ? "bg-red-500" : "bg-red-500/30";
-                borderColor = "border-red-700";
-              }
-              return (
-                <div
-                  key={i}
-                  className={`w-4 h-4 rounded-full border-2 ${bgColor} ${borderColor} transition-all duration-300 ${
-                    flashFaltasLocal && i === faltasLocal
-                      ? "shadow-lg shadow-white"
-                      : ""
-                  }`}
-                ></div>
-              );
-            })}
-          </div>
         </div>
 
-        {/* Cronómetro en el centro */}
-        <div className="flex flex-col items-center gap-2">
+        {/* Cronómetro en el centro con faltas a los lados */}
+        <div className="flex flex-col items-center gap-3">
           <div className="flex gap-2">
             <button
               onClick={iniciarPausar}
@@ -160,75 +129,98 @@ function Marcador({
             </button>
             <button
               onClick={reiniciar}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-semibold px-3 py-1 rounded text-xs shadow-lg transition-all"
+              className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-3 py-1 rounded text-xs shadow-lg transition-all"
             >
               ⟲ Reset
             </button>
           </div>
-          <div className="bg-white text-gray-900 text-6xl font-bold px-8 py-6 rounded-lg shadow-inner min-w-[180px] text-center">
-            {String(minutos).padStart(2, "0")}:
-            {String(segundos).padStart(2, "0")}
+          
+          {/* Cronómetro con indicadores de faltas */}
+          <div className="flex items-center gap-4">
+            {/* Indicador de faltas LOCAL - 5 bolas blancas */}
+            <div
+              className={`flex flex-col gap-1 transition-all duration-300 ${
+                flashFaltasLocal ? "scale-110" : ""
+              }`}
+            >
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
+                    i <= faltasLocal 
+                      ? "bg-white border-white shadow-lg shadow-white/50" 
+                      : "bg-gray-800 border-gray-600"
+                  } ${
+                    flashFaltasLocal && i === faltasLocal
+                      ? "shadow-xl shadow-white"
+                      : ""
+                  }`}
+                ></div>
+              ))}
+            </div>
+
+            {/* Cronómetro LED */}
+            <div 
+              className="bg-black text-red-500 text-7xl font-bold px-10 py-8 rounded-lg shadow-inner min-w-[220px] text-center border-4 border-gray-800"
+              style={{ 
+                fontFamily: "'Orbitron', monospace", 
+                letterSpacing: '0.15em',
+                textShadow: '0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.5)'
+              }}
+            >
+              {String(minutos).padStart(2, "0")}:{String(segundos).padStart(2, "0")}
+            </div>
+
+            {/* Indicador de faltas VISITANTE - 5 bolas blancas */}
+            <div
+              className={`flex flex-col gap-1 transition-all duration-300 ${
+                flashFaltasVisitante ? "scale-110" : ""
+              }`}
+            >
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
+                    i <= faltasVisitante 
+                      ? "bg-white border-white shadow-lg shadow-white/50" 
+                      : "bg-gray-800 border-gray-600"
+                  } ${
+                    flashFaltasVisitante && i === faltasVisitante
+                      ? "shadow-xl shadow-white"
+                      : ""
+                  }`}
+                ></div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Equipo Visitante */}
         <div className="flex-1 text-center">
-          <h3 className="text-white text-xl font-bold mb-2 uppercase tracking-wide">
+          <h3 className="text-white text-xl font-bold mb-3 uppercase tracking-wider">
             {equipoVisitante}
           </h3>
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={decrementarVisitante}
-              className="bg-red-500 hover:bg-red-600 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
             >
               -
             </button>
             <div
-              className={`bg-white text-gray-900 text-5xl font-bold px-6 py-4 rounded-lg shadow-inner min-w-[100px] transition-all duration-300 ${
-                flashGolVisitante ? "scale-125 bg-yellow-300 shadow-2xl" : ""
+              className={`bg-black text-yellow-400 text-6xl font-bold px-6 py-4 rounded-lg shadow-inner min-w-[100px] border-2 border-gray-700 transition-all duration-300 ${
+                flashGolVisitante ? "scale-125 text-yellow-300 shadow-2xl shadow-yellow-400/50" : ""
               }`}
+              style={{ fontFamily: "'Orbitron', monospace", letterSpacing: '0.1em' }}
             >
-              {golesVisitante}
+              {String(golesVisitante).padStart(2, '0')}
             </div>
             <button
               onClick={incrementarVisitante}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl px-4 py-6 rounded-lg shadow-lg transition-all"
             >
               +
             </button>
-          </div>
-          {/* Indicador de faltas - 5 bolas */}
-          <div
-            className={`flex gap-1 mt-2 justify-center transition-all duration-300 ${
-              flashFaltasVisitante ? "scale-110" : ""
-            }`}
-          >
-            {[1, 2, 3, 4, 5].map((i) => {
-              let bgColor = "";
-              let borderColor = "";
-              if (i <= 3) {
-                bgColor =
-                  i <= faltasVisitante ? "bg-green-500" : "bg-green-500/30";
-                borderColor = "border-green-700";
-              } else if (i === 4) {
-                bgColor =
-                  i <= faltasVisitante ? "bg-yellow-500" : "bg-yellow-500/30";
-                borderColor = "border-yellow-600";
-              } else {
-                bgColor = i <= faltasVisitante ? "bg-red-500" : "bg-red-500/30";
-                borderColor = "border-red-700";
-              }
-              return (
-                <div
-                  key={i}
-                  className={`w-4 h-4 rounded-full border-2 ${bgColor} ${borderColor} transition-all duration-300 ${
-                    flashFaltasVisitante && i === faltasVisitante
-                      ? "shadow-lg shadow-white"
-                      : ""
-                  }`}
-                ></div>
-              );
-            })}
           </div>
         </div>
       </div>
