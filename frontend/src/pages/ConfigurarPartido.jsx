@@ -368,6 +368,12 @@ function ConfigurarPartido() {
     setPosicionSeleccionada(null);
   };
 
+  // Función para manejar la selección de posición con exclusión mutua
+  const handlePosicionSeleccionar = (posicion) => {
+    setAccionActiva(null); // Limpiar acción activa
+    setPosicionSeleccionada(posicion);
+  };
+
   const handleAccionDrop = (e, accion) => {
     e.preventDefault();
     const jugadorData = e.dataTransfer.getData("jugador");
@@ -1634,7 +1640,7 @@ function ConfigurarPartido() {
                 estadisticas={estadisticas}
                 onPosicionClick={handlePosicionClick}
                 posicionSeleccionada={posicionSeleccionada}
-                onPosicionSeleccionar={setPosicionSeleccionada}
+                onPosicionSeleccionar={handlePosicionSeleccionar}
               />
 
               {/* Botones de acción debajo de la pista */}
@@ -1661,9 +1667,10 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "gol")}
-                  onClick={() =>
-                    setAccionActiva(accionActiva === "gol" ? null : "gol")
-                  }
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "gol" ? null : "gol");
+                  }}
                   className={`w-24 h-[74px] bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "gol"
                       ? "ring-4 ring-green-300 scale-110 animate-pulse border-white"
@@ -1686,9 +1693,10 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "falta")}
-                  onClick={() =>
-                    setAccionActiva(accionActiva === "falta" ? null : "falta")
-                  }
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "falta" ? null : "falta");
+                  }}
                   className={`w-24 h-[74px] bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "falta"
                       ? "ring-4 ring-orange-300 scale-110 animate-pulse border-white"
@@ -1717,11 +1725,12 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "amarilla")}
-                  onClick={() =>
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
                     setAccionActiva(
                       accionActiva === "amarilla" ? null : "amarilla"
-                    )
-                  }
+                    );
+                  }}
                   className={`w-24 h-[74px] bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "amarilla"
                       ? "ring-4 ring-yellow-300 scale-110 animate-pulse border-gray-800"
@@ -1751,9 +1760,10 @@ function ConfigurarPartido() {
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "roja")}
-                  onClick={() =>
-                    setAccionActiva(accionActiva === "roja" ? null : "roja")
-                  }
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "roja" ? null : "roja");
+                  }}
                   className={`w-24 h-[74px] bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "roja"
                       ? "ring-4 ring-red-300 scale-110 animate-pulse border-white"
