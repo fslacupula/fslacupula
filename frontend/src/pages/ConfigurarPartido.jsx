@@ -1641,6 +1641,12 @@ function ConfigurarPartido() {
                 onPosicionClick={handlePosicionClick}
                 posicionSeleccionada={posicionSeleccionada}
                 onPosicionSeleccionar={handlePosicionSeleccionar}
+                accionActiva={accionActiva}
+                onJugadorClick={(jugador) => {
+                  if (accionActiva) {
+                    ejecutarAccion(jugador, accionActiva);
+                  }
+                }}
               />
 
               {/* Botones de acción debajo de la pista */}

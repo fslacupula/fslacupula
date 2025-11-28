@@ -13,6 +13,8 @@ export default function PistaFutsal({
   estadisticas = {},
   posicionSeleccionada = null,
   onPosicionSeleccionar,
+  accionActiva = null,
+  onJugadorClick,
 }) {
   // Agrupar jugadores por posición
   const porteros = jugadores.filter((j) => j.posicion === "Portero");
@@ -22,12 +24,20 @@ export default function PistaFutsal({
   const alaPivots = jugadores.filter((j) => j.posicion === "Ala-Pivot");
 
   const handlePosicionClick = (posicion) => {
-    // Si hay un jugador, quitarlo (comportamiento original)
-    if (onPosicionClick && jugadoresAsignados[posicion]) {
+    const jugadorEnPosicion = jugadoresAsignados[posicion];
+    
+    // Si hay acción activa y hay un jugador, ejecutar la acción en el jugador
+    if (accionActiva && jugadorEnPosicion && onJugadorClick) {
+      onJugadorClick(jugadorEnPosicion);
+      return;
+    }
+    
+    // Si hay un jugador y NO hay acción activa, quitarlo (comportamiento original)
+    if (onPosicionClick && jugadorEnPosicion && !accionActiva) {
       onPosicionClick(posicion);
     }
     // Si no hay jugador y hay callback de selección, activar/desactivar selección de posición
-    else if (onPosicionSeleccionar && !jugadoresAsignados[posicion]) {
+    else if (onPosicionSeleccionar && !jugadorEnPosicion) {
       // Toggle: si ya está seleccionada, deseleccionar; si no, seleccionar
       onPosicionSeleccionar(
         posicionSeleccionada === posicion ? null : posicion
