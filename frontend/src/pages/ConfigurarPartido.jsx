@@ -197,7 +197,9 @@ function ConfigurarPartido() {
   const handleDrop = (jugador, posicion) => {
     // Prevenir que jugadores visitantes se pongan en pista
     const esVisitante =
-      jugador.id && jugador.id.toString().startsWith("visitante-");
+      jugador.id &&
+      (jugador.id.toString().startsWith("visitante-") ||
+        jugador.id.toString().includes("-visitante-"));
     if (esVisitante) {
       console.log("Jugadores visitantes no pueden ponerse en pista");
       return;
@@ -385,7 +387,9 @@ function ConfigurarPartido() {
 
   const registrarAccion = (jugador, accion) => {
     const esVisitante =
-      jugador.id && jugador.id.toString().startsWith("visitante-");
+      jugador.id &&
+      (jugador.id.toString().startsWith("visitante-") ||
+        jugador.id.toString().includes("-visitante-"));
 
     const nuevaAccion = {
       id: Date.now(),
@@ -789,94 +793,9 @@ function ConfigurarPartido() {
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        {/* Información del Partido */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            {partidoInfo ? (
-              <>
-                <div className="text-sm">
-                  <span className="font-semibold text-gray-700">Partido:</span>
-                  <span className="ml-2 text-blue-600 font-medium capitalize">
-                    {partidoInfo.tipo || "Partido"} -{" "}
-                    {new Date(partidoInfo.fecha_hora).toLocaleDateString(
-                      "es-ES"
-                    )}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <span className="font-semibold text-gray-700">Rival:</span>
-                  <span className="ml-2 text-gray-800">
-                    {partidoInfo.rival || "No especificado"}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <span className="font-semibold text-gray-700">
-                    Jugadores confirmados:
-                  </span>
-                  <span className="ml-2 text-green-600 font-bold">
-                    {jugadores.length}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold">ID Partido:</span>
-                <span className="ml-2 font-mono text-blue-600">
-                  {partidoId || "Cargando..."}
-                </span>
-                <span className="ml-3 text-xs text-gray-500">(Modo libre)</span>
-              </div>
-            )}
-          </div>
-          {!partidoInfo && (
-            <button
-              onClick={crearNuevoPartido}
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
-              title="Crear un nuevo partido"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Nuevo Partido
-            </button>
-          )}
-          {partidoInfo && (
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
-              title="Volver al dashboard"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-              Volver
-            </button>
-          )}
-        </div>
-
         {/* Marcador */}
         <Marcador
-          equipoLocal="LOCAL"
+          equipoLocal="LA CÚPULA LOS CUESTA"
           equipoVisitante={partidoInfo?.rival || "VISITANTE"}
           onDeshacer={deshacer}
           deshabilitarDeshacer={historialAcciones.length === 0}
@@ -888,6 +807,9 @@ function ConfigurarPartido() {
           setGolesVisitante={setGolesVisitante}
           onCronometroChange={setCronometroActivo}
           flashEffect={flashEffect}
+          jugadoresLocal={jugadores}
+          jugadoresAsignados={jugadoresAsignados}
+          estadisticas={estadisticas}
         />
 
         {/* Animación de Tarjeta/Gol Espectacular */}
@@ -1280,59 +1202,17 @@ function ConfigurarPartido() {
                               : "Arrastra a la pista o a zona de acciones"
                           }
                         >
-                          {/* Mostrar balones según número de goles */}
-                          {Array.from({ length: Math.min(numGoles, 4) }).map(
-                            (_, index) => (
-                              <div
-                                key={index}
-                                className={`absolute ${posicionesBalones[index].className} w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-lg`}
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                >
-                                  <circle
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    fill="white"
-                                    stroke="#000"
-                                    strokeWidth="1.5"
-                                  />
-                                  <path
-                                    d="M12 2 L14 8 L12 12 L10 8 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M22 12 L16 14 L12 12 L16 10 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M12 22 L10 16 L12 12 L14 16 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M2 12 L8 10 L12 12 L8 14 Z"
-                                    fill="#000"
-                                  />
-                                </svg>
-                              </div>
-                            )
-                          )}
-                          {tieneRoja ? (
-                            <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : tieneAmarilla ? (
-                            <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : (
+                          <div className="flex flex-col items-center">
                             <span className="text-white text-lg">
                               {jugador.numero_dorsal}
                             </span>
-                          )}
+                            <span className="text-white text-[8px] font-mono mt-0.5">
+                              {Math.floor(
+                                estadisticas[jugador.id]?.minutos || 0
+                              )}
+                              '
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
@@ -1427,59 +1307,17 @@ function ConfigurarPartido() {
                               : "Arrastra a la pista o a zona de acciones"
                           }
                         >
-                          {/* Mostrar balones según número de goles */}
-                          {Array.from({ length: Math.min(numGoles, 4) }).map(
-                            (_, index) => (
-                              <div
-                                key={index}
-                                className={`absolute ${posicionesBalones[index].className} w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-lg`}
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                >
-                                  <circle
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    fill="white"
-                                    stroke="#000"
-                                    strokeWidth="1.5"
-                                  />
-                                  <path
-                                    d="M12 2 L14 8 L12 12 L10 8 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M22 12 L16 14 L12 12 L16 10 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M12 22 L10 16 L12 12 L14 16 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M2 12 L8 10 L12 12 L8 14 Z"
-                                    fill="#000"
-                                  />
-                                </svg>
-                              </div>
-                            )
-                          )}
-                          {tieneRoja ? (
-                            <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : tieneAmarilla ? (
-                            <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : (
+                          <div className="flex flex-col items-center">
                             <span className="text-white text-lg">
                               {jugador.numero_dorsal}
                             </span>
-                          )}
+                            <span className="text-white text-[8px] font-mono mt-0.5">
+                              {Math.floor(
+                                estadisticas[jugador.id]?.minutos || 0
+                              )}
+                              '
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
@@ -1570,59 +1408,17 @@ function ConfigurarPartido() {
                               : "Arrastra a la pista o a zona de acciones"
                           }
                         >
-                          {/* Mostrar balones según número de goles */}
-                          {Array.from({ length: Math.min(numGoles, 4) }).map(
-                            (_, index) => (
-                              <div
-                                key={index}
-                                className={`absolute ${posicionesBalones[index].className} w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-lg`}
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                >
-                                  <circle
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    fill="white"
-                                    stroke="#000"
-                                    strokeWidth="1.5"
-                                  />
-                                  <path
-                                    d="M12 2 L14 8 L12 12 L10 8 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M22 12 L16 14 L12 12 L16 10 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M12 22 L10 16 L12 12 L14 16 Z"
-                                    fill="#000"
-                                  />
-                                  <path
-                                    d="M2 12 L8 10 L12 12 L8 14 Z"
-                                    fill="#000"
-                                  />
-                                </svg>
-                              </div>
-                            )
-                          )}
-                          {tieneRoja ? (
-                            <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : tieneAmarilla ? (
-                            <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                              {jugador.numero_dorsal}
-                            </div>
-                          ) : (
+                          <div className="flex flex-col items-center">
                             <span className="text-white text-lg">
                               {jugador.numero_dorsal}
                             </span>
-                          )}
+                            <span className="text-white text-[8px] font-mono mt-0.5">
+                              {Math.floor(
+                                estadisticas[jugador.id]?.minutos || 0
+                              )}
+                              '
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
@@ -2254,6 +2050,190 @@ function ConfigurarPartido() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Lista de jugadores con minutos jugados */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <h3 className="text-lg font-bold text-gray-700 mb-3">
+            Minutos Jugados
+          </h3>
+          <div className="grid grid-cols-6 gap-2">
+            {jugadores
+              .sort((a, b) => {
+                const minutosA = estadisticas[a.id]?.minutos || 0;
+                const minutosB = estadisticas[b.id]?.minutos || 0;
+                return minutosB - minutosA; // Mayor a menor
+              })
+              .map((jugador) => {
+                const stats = estadisticas[jugador.id];
+                const minutos = Math.floor(stats?.minutos || 0);
+                const enPista = isJugadorAsignado(jugador.id);
+                const tieneAmarilla = stats?.amarillas > 0;
+                const tieneRoja = stats?.rojas > 0;
+                const numGoles = stats?.goles || 0;
+
+                return (
+                  <div
+                    key={jugador.id}
+                    className={`flex items-stretch p-2 rounded-lg border-2 gap-2 ${
+                      enPista
+                        ? "bg-green-50 border-green-500"
+                        : "bg-gray-50 border-gray-300"
+                    }`}
+                  >
+                    {/* Columna 1: Dorsal/Alias y Minutos */}
+                    <div className="flex flex-col justify-between flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-blue-600 text-base">
+                          {jugador.numero_dorsal}
+                        </span>
+                        <span className="text-gray-700 text-xs truncate max-w-[45px]">
+                          {jugador.alias || jugador.nombre}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <span className="font-bold text-gray-800 text-xl">
+                          {minutos}
+                        </span>
+                        <span className="text-gray-500 text-sm">'</span>
+                      </div>
+                    </div>
+
+                    {/* Columna 2: Balón con goles (ocupa alto completo) */}
+                    {numGoles > 0 && (
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-8 h-8 bg-white rounded-full border-2 border-gray-800 flex items-center justify-center">
+                          <span className="text-sm font-bold text-gray-800 relative z-10">
+                            {numGoles}
+                          </span>
+                          {/* Patrón de balón simplificado */}
+                          <svg
+                            className="absolute inset-0 w-full h-full"
+                            viewBox="0 0 20 20"
+                          >
+                            <circle
+                              cx="10"
+                              cy="10"
+                              r="9"
+                              fill="none"
+                              stroke="#000"
+                              strokeWidth="0.5"
+                            />
+                            <path
+                              d="M10 2 L11 6 L10 10 L9 6 Z"
+                              fill="#000"
+                              fillOpacity="0.15"
+                            />
+                            <path
+                              d="M18 10 L14 11 L10 10 L14 9 Z"
+                              fill="#000"
+                              fillOpacity="0.15"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Columna 3: Tarjetas (amarilla arriba, roja abajo) */}
+                    <div className="flex flex-col justify-between">
+                      <div className="h-1/2 flex items-start">
+                        {tieneAmarilla && (
+                          <div className="w-4 h-5 bg-yellow-400 rounded-sm border border-yellow-600"></div>
+                        )}
+                      </div>
+                      <div className="h-1/2 flex items-end">
+                        {tieneRoja && (
+                          <div className="w-4 h-5 bg-red-500 rounded-sm border border-red-700"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Información del Partido */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            {partidoInfo ? (
+              <>
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-700">Partido:</span>
+                  <span className="ml-2 text-blue-600 font-medium capitalize">
+                    {partidoInfo.tipo || "Partido"} -{" "}
+                    {new Date(partidoInfo.fecha_hora).toLocaleDateString(
+                      "es-ES"
+                    )}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-700">Rival:</span>
+                  <span className="ml-2 text-gray-800">
+                    {partidoInfo.rival || "No especificado"}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-700">
+                    Jugadores confirmados:
+                  </span>
+                  <span className="ml-2 text-green-600 font-bold">
+                    {jugadores.length}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold">ID Partido:</span>
+                <span className="ml-2 font-mono text-blue-600">
+                  {partidoId || "Cargando..."}
+                </span>
+                <span className="ml-3 text-xs text-gray-500">(Modo libre)</span>
+              </div>
+            )}
+          </div>
+          {!partidoInfo && (
+            <button
+              onClick={crearNuevoPartido}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+              title="Crear un nuevo partido"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Nuevo Partido
+            </button>
+          )}
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+            title="Volver al dashboard"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Volver
+          </button>
         </div>
       </div>
     </div>
