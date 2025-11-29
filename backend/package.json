@@ -6,7 +6,23 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit",
+    "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e",
+    "migrate": "node database/migrate.js",
+    "migrate:up": "node database/migrate.js up",
+    "migrate:down": "node database/migrate.js down",
+    "migrate:status": "node database/migrate.js status",
+    "migrate:reset": "node database/migrate.js reset",
+    "migrate:create": "node database/migrate.js create",
+    "seed": "node database/seed.js",
+    "seed:dev": "node database/seed.js development",
+    "db:setup": "npm run migrate:up && npm run seed:dev",
+    "db:reset": "npm run migrate:reset && npm run migrate:up && npm run seed:dev"
   },
   "keywords": [
     "futbol",
@@ -17,11 +33,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "pg": "^8.11.3",
     "bcrypt": "^5.1.1",
-    "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

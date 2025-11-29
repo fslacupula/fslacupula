@@ -1,8 +1,8 @@
 import express from "express";
-import { listarPosiciones } from "../controllers/posicionController.js";
+import { posicionController } from "../controllers-instance.js";
 
 const router = express.Router();
 
-router.get("/", listarPosiciones);
+router.get("/", posicionController.listarPosiciones);
 
 export default router;

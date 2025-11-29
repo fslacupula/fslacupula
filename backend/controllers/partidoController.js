@@ -104,8 +104,33 @@ export const obtenerPartido = async (req, res) => {
 
     formatearFechaHora(partido);
     const asistencias = await AsistenciaPartido.listarPorPartido(id);
+    console.log(
+      "🔍 [obtenerPartido] Total asistencias obtenidas:",
+      asistencias?.length
+    );
+    if (asistencias && asistencias.length > 0) {
+      console.log(
+        "🔍 [obtenerPartido] Primera asistencia (estructura):",
+        asistencias[0]
+      );
+      console.log(
+        "🔍 [obtenerPartido] Claves de asistencia:",
+        Object.keys(asistencias[0])
+      );
+    }
 
     partido.asistencias = asistencias;
+    console.log(
+      "📦 [obtenerPartido] Asistencias asignadas a partido:",
+      partido.asistencias?.length
+    );
+    console.log("📤 [obtenerPartido] Enviando respuesta con partido:", {
+      id: partido.id,
+      rival: partido.rival,
+      tieneAsistencias: !!partido.asistencias,
+      cantidadAsistencias: partido.asistencias?.length,
+    });
+
     res.json({ partido });
   } catch (error) {
     console.error("Error al obtener partido:", error);

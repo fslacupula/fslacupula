@@ -1,31 +1,29 @@
 import express from "express";
-import {
-  register,
-  login,
-  getProfile,
-  registrarJugadorPorGestor,
-  listarJugadores,
-  cambiarEstadoJugador,
-} from "../controllers/authController.js";
+import { authController } from "../controllers-instance.js";
 import { authenticateToken, esGestor } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/register", register);
-router.post("/login", login);
-router.get("/profile", authenticateToken, getProfile);
+router.post("/register", authController.register);
+router.post("/login", authController.login);
+router.get("/profile", authenticateToken, authController.getProfile);
 router.post(
   "/registrar-jugador",
   authenticateToken,
   esGestor,
-  registrarJugadorPorGestor
+  authController.registrarJugadorPorGestor
 );
-router.get("/jugadores", authenticateToken, esGestor, listarJugadores);
+router.get(
+  "/jugadores",
+  authenticateToken,
+  esGestor,
+  authController.listarJugadores
+);
 router.patch(
   "/jugadores/:id/estado",
   authenticateToken,
   esGestor,
-  cambiarEstadoJugador
+  authController.cambiarEstadoJugador
 );
 
 export default router;

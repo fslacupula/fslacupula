@@ -8,6 +8,10 @@ import entrenamientoRoutes from "./routes/entrenamientos.js";
 import partidoRoutes from "./routes/partidos.js";
 import motivoRoutes from "./routes/motivos.js";
 import posicionRoutes from "./routes/posiciones.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./src/infrastructure/http/middleware/errorHandler.js";
 
 dotenv.config();
 
@@ -42,6 +46,10 @@ if (process.env.NODE_ENV === "production") {
     res.json({ message: "API Fútbol Club funcionando ✅⚽" });
   });
 }
+
+// Manejadores de errores (deben ir AL FINAL, después de todas las rutas)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);

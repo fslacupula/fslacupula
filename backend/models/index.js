@@ -396,6 +396,11 @@ export const AsistenciaPartido = {
        ORDER BY u.nombre`,
       [partidoId]
     );
+    console.log("🔍 [listarPorPartido] Primera fila de BD:", result.rows[0]);
+    console.log(
+      "🔍 [listarPorPartido] Claves de primera fila:",
+      Object.keys(result.rows[0] || {})
+    );
     return result.rows;
   },
 

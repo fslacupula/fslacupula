@@ -1,14 +1,5 @@
 import express from "express";
-import {
-  crearEntrenamiento,
-  listarEntrenamientos,
-  obtenerEntrenamiento,
-  actualizarEntrenamiento,
-  eliminarEntrenamiento,
-  registrarAsistenciaEntrenamiento,
-  actualizarAsistenciaGestor,
-  misEntrenamientos,
-} from "../controllers/entrenamientoController.js";
+import { entrenamientoController } from "../controllers-instance.js";
 import { authenticateToken, esGestor } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -16,17 +7,17 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Rutas de entrenamientos
-router.post("/", esGestor, crearEntrenamiento);
-router.get("/", listarEntrenamientos);
-router.get("/mis-entrenamientos", misEntrenamientos);
-router.get("/:id", obtenerEntrenamiento);
-router.put("/:id", esGestor, actualizarEntrenamiento);
-router.delete("/:id", esGestor, eliminarEntrenamiento);
+router.post("/", esGestor, entrenamientoController.crearEntrenamiento);
+router.get("/", entrenamientoController.listarEntrenamientos);
+router.get("/:id", entrenamientoController.obtenerEntrenamiento);
+router.put("/:id", esGestor, entrenamientoController.actualizarEntrenamiento);
+router.delete("/:id", esGestor, entrenamientoController.eliminarEntrenamiento);
 
 // Registro de asistencia
-router.post("/:id/asistencia", registrarAsistenciaEntrenamiento);
-
-// Gestor actualiza asistencia de cualquier jugador
-router.put("/:id/asistencia/:jugadorId", esGestor, actualizarAsistenciaGestor);
+router.post("/:id/asistencia", entrenamientoController.registrarAsistencia);
+router.put(
+  "/:id/asistencia/:jugadorId",
+  entrenamientoController.actualizarAsistencia
+);
 
 export default router;
