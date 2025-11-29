@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { entrenamientos, partidos, motivos } from "../services/api";
+import { useAuthContext } from "@contexts";
 
-export default function DetalleAsistencia({ user, setUser }) {
+export default function DetalleAsistencia() {
+  const { usuario, logout } = useAuthContext();
   const { tipo, id } = useParams();
   const navigate = useNavigate();
   const [evento, setEvento] = useState(null);
@@ -13,7 +15,7 @@ export default function DetalleAsistencia({ user, setUser }) {
 
   useEffect(() => {
     cargarDetalle();
-    if (user.rol === "gestor") {
+    if (usuario?.rol === "gestor") {
       cargarMotivos();
     }
   }, [tipo, id]);
@@ -40,6 +42,12 @@ export default function DetalleAsistencia({ user, setUser }) {
           ? res.data.entrenamiento
           : res.data.partido;
 
+      console.log("📋 Detalle del evento cargado:", data);
+      console.log("👥 Asistencias recibidas:", data.asistencias);
+      if (data.asistencias && data.asistencias.length > 0) {
+        console.log("🔍 Primera asistencia (estructura):", data.asistencias[0]);
+      }
+
       setEvento(data);
     } catch (error) {
       console.error("Error al cargar detalle:", error);
@@ -51,8 +59,7 @@ export default function DetalleAsistencia({ user, setUser }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
+    logout();
     navigate("/login");
   };
 
@@ -208,7 +215,7 @@ export default function DetalleAsistencia({ user, setUser }) {
         </div>
       )}
 
-      {user.rol === "gestor" && (
+      {usuario?.rol === "gestor" && (
         <div className="flex flex-wrap gap-2 ml-14">
           <button
             onClick={() => handleCambiarEstado(asistencia, "confirmado")}
@@ -261,7 +268,7 @@ export default function DetalleAsistencia({ user, setUser }) {
                 ← <span className="hidden sm:inline">Volver</span>
               </button>
               <span className="text-sm sm:text-base text-gray-600 hidden md:inline">
-                Hola, {user.nombre}
+                Hola, {usuario?.nombre}
               </span>
               <button
                 onClick={handleLogout}
@@ -296,36 +303,36 @@ export default function DetalleAsistencia({ user, setUser }) {
                   ? evento.tipo
                   : "Entrenamiento"}
               </div>
-              {user.rol === "gestor" &&
-                tipo === "partidos" &&
-                evento.asistencias &&
-                evento.asistencias.filter((a) => a.estado === "confirmado")
-                  .length > 0 && (
-                  <button
-                    onClick={() => navigate(`/configurar-partido/${id}`)}
-                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
-                    title={`Configurar partido (${
-                      evento.asistencias.filter(
-                        (a) => a.estado === "confirmado"
-                      ).length
-                    } confirmados)`}
+              {usuario?.rol === "gestor" && tipo === "partidos" && (
+                <button
+                  onClick={() => navigate(`/configurar-partido/${id}`)}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
+                  title={`Configurar partido ${
+                    evento.asistencias
+                      ? `(${
+                          evento.asistencias.filter(
+                            (a) => a.estado === "confirmado"
+                          ).length
+                        } confirmados)`
+                      : ""
+                  }`}
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
-                      />
-                    </svg>
-                    Configurar Partido
-                  </button>
-                )}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
+                    />
+                  </svg>
+                  Configurar Partido
+                </button>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">

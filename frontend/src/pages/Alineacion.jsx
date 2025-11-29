@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PistaFutsal from "../components/PistaFutsal";
-import { auth } from "../services/api";
+import { useAuthContext } from "@contexts";
 
 /**
  * Vista de Alineación - Muestra la pista de fútbol sala con jugadores confirmados
  */
-export default function Alineacion({ user, setUser }) {
+export default function Alineacion() {
+  const { logout } = useAuthContext();
   const navigate = useNavigate();
   const [jugadoresConfirmados, setJugadoresConfirmados] = useState([]);
 
@@ -59,8 +60,7 @@ export default function Alineacion({ user, setUser }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
+    logout();
     navigate("/login");
   };
 
@@ -76,7 +76,7 @@ export default function Alineacion({ user, setUser }) {
             ⚽ Alineación - Pista
           </h1>
           <div className="flex items-center gap-4">
-            <span className="text-gray-600">Hola, {user?.nombre}</span>
+            <span className="text-gray-600">Hola, {usuario?.nombre}</span>
             <button
               onClick={handleLogout}
               className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"

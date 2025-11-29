@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PistaFutsal from "../components/PistaFutsal";
 import Marcador from "../components/Marcador";
-import { auth, partidos } from "../services/api";
+import { partidos, auth } from "../services/api";
+import { useAuthContext } from "@contexts";
 
 function ConfigurarPartido() {
+  const { logout } = useAuthContext();
   const navigate = useNavigate();
   const { partidoId: partidoIdParam } = useParams();
   const [jugadores, setJugadores] = useState([]);
@@ -692,10 +694,34 @@ function ConfigurarPartido() {
         // Cargar información del partido
         const responsePartido = await partidos.obtener(partidoIdParam);
         const partido = responsePartido.data.partido || responsePartido.data;
+
+        console.log(
+          "📊 [ConfigurarPartido] Respuesta completa del backend:",
+          responsePartido.data
+        );
+        console.log("📊 [ConfigurarPartido] Partido cargado:", partido);
+        console.log("👥 [ConfigurarPartido] Asistencias:", partido.asistencias);
+        console.log(
+          "🔢 [ConfigurarPartido] Cantidad de asistencias:",
+          partido.asistencias?.length
+        );
+
         setPartidoInfo(partido);
 
         // Cargar solo jugadores/staff confirmados para este partido
         const asistentes = partido.asistencias || [];
+
+        // DEBUG: Ver estructura de la primera asistencia
+        if (asistentes.length > 0) {
+          console.log(
+            "🔍 [ConfigurarPartido] Estructura de primera asistencia:",
+            asistentes[0]
+          );
+          console.log(
+            "🔍 [ConfigurarPartido] Claves disponibles:",
+            Object.keys(asistentes[0])
+          );
+        }
 
         // Filtrar jugadores confirmados con dorsal
         const jugadoresConfirmados = asistentes
@@ -704,7 +730,8 @@ function ConfigurarPartido() {
               a.estado === "confirmado" &&
               a.dorsal !== null &&
               a.dorsal !== undefined &&
-              a.posicion !== "Staff"
+              a.posicion !== "Staff" &&
+              a.posicion !== "Extra"
           )
           .map((a) => ({
             id: a.jugador_id,
@@ -718,6 +745,11 @@ function ConfigurarPartido() {
           }))
           .sort((a, b) => a.numero_dorsal - b.numero_dorsal);
 
+        console.log(
+          "⚽ Jugadores confirmados filtrados:",
+          jugadoresConfirmados
+        );
+
         // Filtrar staff confirmado
         const staffConfirmado = asistentes
           .filter((a) => a.estado === "confirmado" && a.posicion === "Staff")
@@ -729,6 +761,8 @@ function ConfigurarPartido() {
             color: a.color,
             alias: a.alias,
           }));
+
+        console.log("👔 Staff confirmado:", staffConfirmado);
 
         const staffOrganizado = {
           ENT: staffConfirmado.filter((s) => s.nombre.includes("Entrenador")),
@@ -755,8 +789,18 @@ function ConfigurarPartido() {
 
         const jugadoresConDorsal = usuarios
           .filter(
-            (u) => u.numero_dorsal !== null && u.numero_dorsal !== undefined
+            (u) => u.numeroDorsal !== null && u.numeroDorsal !== undefined
           )
+          .map((u) => ({
+            id: u.usuarioId || u.id,
+            nombre: u.nombre,
+            numero_dorsal: u.numeroDorsal,
+            posicion: u.posicion,
+            abreviatura: u.abreviatura,
+            color: u.color,
+            alias: u.alias,
+            email: u.email,
+          }))
           .sort((a, b) => a.numero_dorsal - b.numero_dorsal);
 
         const staffUsuarios = usuarios.filter(

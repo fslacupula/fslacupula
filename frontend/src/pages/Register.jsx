@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { auth, posiciones as posicionesApi } from "../services/api";
+import { useAuthContext } from "@contexts";
 
-export default function Register({ setUser }) {
+export default function Register() {
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -13,6 +14,7 @@ export default function Register({ setUser }) {
   });
   const [posiciones, setPosiciones] = useState([]);
   const [error, setError] = useState("");
+  const { login } = useAuthContext();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function Register({ setUser }) {
 
       const response = await auth.register(dataToSend);
       localStorage.setItem("token", response.data.token);
-      setUser(response.data.usuario);
+      login(response.data.usuario);
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.error || "Error al registrarse");

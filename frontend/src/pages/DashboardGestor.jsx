@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuthContext } from "../contexts/AuthContext";
 import {
   entrenamientos,
   partidos,
@@ -24,7 +25,8 @@ const compararFechas = (fechaStr1, fechaStr2) => {
   return f1.localeCompare(f2);
 };
 
-export default function DashboardGestor({ user, setUser }) {
+export default function DashboardGestor() {
+  const { usuario: user, logout, isLoading } = useAuthContext();
   const [activeTab, setActiveTab] = useState("todos");
   const [vistaMode, setVistaMode] = useState("calendario"); // "lista" o "calendario"
   const [listaEntrenamientos, setListaEntrenamientos] = useState([]);
@@ -79,22 +81,27 @@ export default function DashboardGestor({ user, setUser }) {
 
   const cargarDatos = async () => {
     try {
+      console.log("🔄 [cargarDatos] activeTab:", activeTab);
       if (activeTab === "todos") {
         const [resEnt, resPart] = await Promise.all([
           entrenamientos.listar(),
           partidos.listar(),
         ]);
+        console.log("📊 [cargarDatos] Entrenamientos:", resEnt.data);
+        console.log("📊 [cargarDatos] Partidos:", resPart.data);
         setListaEntrenamientos(resEnt.data.entrenamientos || []);
         setListaPartidos(resPart.data.partidos || []);
       } else if (activeTab === "entrenamientos") {
         const res = await entrenamientos.listar();
+        console.log("📊 [cargarDatos] Entrenamientos:", res.data);
         setListaEntrenamientos(res.data.entrenamientos || []);
       } else {
         const res = await partidos.listar();
+        console.log("📊 [cargarDatos] Partidos:", res.data);
         setListaPartidos(res.data.partidos || []);
       }
     } catch (error) {
-      console.error("Error al cargar datos:", error);
+      console.error("❌ [cargarDatos] Error:", error);
     }
   };
 
@@ -123,8 +130,7 @@ export default function DashboardGestor({ user, setUser }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
+    logout();
     navigate("/login");
   };
 
@@ -309,10 +315,14 @@ export default function DashboardGestor({ user, setUser }) {
       eventos = [...entrenamientos, ...partidos].sort((a, b) =>
         a.hora.localeCompare(b.hora)
       );
+    } else if (activeTab === "entrenamientos") {
+      eventos = listaEntrenamientos
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
+        .map((e) => ({ ...e, tipoEvento: "entrenamientos" }));
     } else {
-      eventos =
-        activeTab === "entrenamientos" ? listaEntrenamientos : listaPartidos;
-      eventos = eventos.filter((e) => getFechaString(e.fecha) === fechaStr);
+      eventos = listaPartidos
+        .filter((e) => getFechaString(e.fecha) === fechaStr)
+        .map((e) => ({ ...e, tipoEvento: "partidos" }));
     }
     return eventos;
   };
@@ -339,9 +349,16 @@ export default function DashboardGestor({ user, setUser }) {
       eventos = [...entrenamientosConTipo, ...partidosConTipo].sort((a, b) => {
         return -compararFechas(a.fecha, b.fecha); // Más recientes primero (negativo invierte el orden)
       });
+    } else if (activeTab === "entrenamientos") {
+      eventos = listaEntrenamientos.map((e) => ({
+        ...e,
+        tipoEvento: "entrenamientos",
+      }));
     } else {
-      eventos =
-        activeTab === "entrenamientos" ? listaEntrenamientos : listaPartidos;
+      eventos = listaPartidos.map((p) => ({
+        ...p,
+        tipoEvento: "partidos",
+      }));
     }
 
     return (
@@ -415,13 +432,12 @@ export default function DashboardGestor({ user, setUser }) {
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-shrink-0">
                     <button
                       onClick={() => {
-                        if (activeTab === "todos") {
-                          navigate(
-                            `/asistencia/${evento.tipoEvento}/${evento.id}`
-                          );
-                        } else {
-                          verDetalle(evento.id);
-                        }
+                        console.log("Evento completo:", evento);
+                        console.log("ID del evento:", evento.id);
+                        console.log("Tipo del evento:", evento.tipoEvento);
+                        navigate(
+                          `/asistencia/${evento.tipoEvento}/${evento.id}`
+                        );
                       }}
                       className="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 whitespace-nowrap"
                     >
@@ -547,18 +563,12 @@ export default function DashboardGestor({ user, setUser }) {
 
                         return (
                           <div
-                            key={`${evento.tipoEvento || activeTab}-${
-                              evento.id
-                            }`}
-                            onClick={() => {
-                              if (activeTab === "todos") {
-                                navigate(
-                                  `/asistencia/${evento.tipoEvento}/${evento.id}`
-                                );
-                              } else {
-                                verDetalle(evento.id);
-                              }
-                            }}
+                            key={`${evento.tipoEvento}-${evento.id}`}
+                            onClick={() =>
+                              navigate(
+                                `/asistencia/${evento.tipoEvento}/${evento.id}`
+                              )
+                            }
                             className={`text-[8px] sm:text-xs p-1 sm:p-2 rounded cursor-pointer ${
                               esEntrenamiento
                                 ? "bg-green-50 hover:bg-green-100 border border-green-200"
@@ -616,6 +626,10 @@ export default function DashboardGestor({ user, setUser }) {
       </div>
     );
   };
+
+  if (!user) {
+    return <div>Cargando...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuthContext } from "../contexts/AuthContext";
 import { entrenamientos, partidos, motivos } from "../services/api";
 
 // Helper para extraer fecha en formato YYYY-MM-DD sin conversión de zona horaria
@@ -18,7 +19,8 @@ const compararFechas = (fechaStr1, fechaStr2) => {
   return f1.localeCompare(f2);
 };
 
-export default function DashboardJugador({ user, setUser }) {
+export default function DashboardJugador() {
+  const { usuario: user, logout } = useAuthContext();
   const [misEntrenamientos, setMisEntrenamientos] = useState([]);
   const [misPartidos, setMisPartidos] = useState([]);
   const [motivosAusencia, setMotivosAusencia] = useState([]);
@@ -59,8 +61,7 @@ export default function DashboardJugador({ user, setUser }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
+    logout();
     navigate("/login");
   };
 
@@ -156,10 +157,10 @@ export default function DashboardJugador({ user, setUser }) {
     if (!fecha) return [];
     // Formatear fecha sin conversión de zona horaria
     const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
     const fechaStr = `${year}-${month}-${day}`;
-    
+
     let eventos = [];
     if (activeTab === "todos") {
       const entrenamientos = misEntrenamientos
@@ -444,6 +445,10 @@ export default function DashboardJugador({ user, setUser }) {
       </div>
     );
   };
+
+  if (!user) {
+    return <div>Cargando...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
