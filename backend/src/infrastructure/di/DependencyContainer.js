@@ -255,6 +255,14 @@ export class DependencyContainer {
   }
 
   /**
+   * Obtiene el pool de conexiones de base de datos
+   * @returns {Pool} Pool de conexiones
+   */
+  getPool() {
+    return pool;
+  }
+
+  /**
    * Obtiene un caso de uso por nombre
    * @param {string} name - Nombre del caso de uso
    * @returns {Object} Caso de uso

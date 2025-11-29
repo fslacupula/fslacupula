@@ -54,6 +54,7 @@ export class PartidoController {
     this.listarJugadoresUseCase = container.getUseCase(
       "listarJugadoresUseCase"
     );
+    this.pool = container.getPool(); // Para transacciones en finalizarPartido
   }
 
   /**
@@ -306,6 +307,178 @@ export class PartidoController {
       next(error);
     }
   }
+
+  /**
+   * POST /partidos/:id/finalizar
+   * Finaliza un partido guardando todas las estadísticas en la base de datos
+   */
+  async finalizarPartido(req, res, next) {
+    const client = await this.pool.connect();
+
+    try {
+      if (req.user.rol !== "gestor") {
+        return res
+          .status(403)
+          .json({ error: "Solo gestores pueden finalizar partidos" });
+      }
+
+      const { id } = req.params;
+      const {
+        estadisticas, // golesLocal, golesVisitante, faltasLocal, faltasVisitante, dorsalesVisitantes
+        jugadores, // estadísticas individuales de cada jugador
+        staff, // tarjetas a staff
+        historialAcciones, // goles, tarjetas, cambios
+        tiemposJuego, // entradas/salidas de jugadores
+      } = req.body;
+
+      console.log("📊 Datos recibidos para finalizar partido:", {
+        partidoId: id,
+        estadisticas,
+        totalJugadores: jugadores?.length,
+        totalStaff: staff?.length,
+        totalAcciones: historialAcciones?.length,
+        totalTiempos: tiemposJuego?.length,
+      });
+
+      // Iniciar transacción
+      await client.query("BEGIN");
+
+      // 1. Actualizar estado del partido a "finalizado"
+      await client.query("UPDATE partidos SET estado = $1 WHERE id = $2", [
+        "finalizado",
+        id,
+      ]);
+
+      // 2. Insertar estadísticas del partido
+      const resultEstadisticas = await client.query(
+        `INSERT INTO estadisticas_partidos (
+          partido_id, goles_local, goles_visitante, 
+          faltas_local, faltas_visitante, dorsales_visitantes,
+          duracion_minutos, fecha_registro
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING id`,
+        [
+          id,
+          estadisticas.golesLocal || 0,
+          estadisticas.golesVisitante || 0,
+          estadisticas.faltasLocal || 0,
+          estadisticas.faltasVisitante || 0,
+          JSON.stringify(estadisticas.dorsalesVisitantes || []),
+          estadisticas.duracionMinutos || 90,
+        ]
+      );
+
+      const estadisticasId = resultEstadisticas.rows[0].id;
+
+      // 3. Insertar estadísticas de jugadores
+      if (jugadores && jugadores.length > 0) {
+        for (const jugador of jugadores) {
+          await client.query(
+            `INSERT INTO estadisticas_jugadores_partido (
+              estadisticas_partido_id, jugador_id, posicion,
+              minutos_jugados, goles, asistencias, tarjetas_amarillas,
+              tarjetas_rojas, paradas, goles_recibidos
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+              estadisticasId,
+              jugador.jugadorId,
+              jugador.posicion || null,
+              jugador.minutosJugados || 0,
+              jugador.goles || 0,
+              jugador.asistencias || 0,
+              jugador.tarjetasAmarillas || 0,
+              jugador.tarjetasRojas || 0,
+              jugador.paradas || 0,
+              jugador.golesRecibidos || 0,
+            ]
+          );
+        }
+      }
+
+      // 4. Insertar staff (si hay tarjetas a staff)
+      if (staff && staff.length > 0) {
+        for (const miembro of staff) {
+          await client.query(
+            `INSERT INTO staff_partido (
+              estadisticas_partido_id, nombre, tipo_staff,
+              tarjetas_amarillas, tarjetas_rojas
+            ) VALUES ($1, $2, $3, $4, $5)`,
+            [
+              estadisticasId,
+              miembro.nombre,
+              miembro.tipo || "entrenador",
+              miembro.tarjetasAmarillas || 0,
+              miembro.tarjetasRojas || 0,
+            ]
+          );
+        }
+      }
+
+      // 5. Insertar historial de acciones
+      if (historialAcciones && historialAcciones.length > 0) {
+        for (const accion of historialAcciones) {
+          await client.query(
+            `INSERT INTO historial_acciones_partido (
+              estadisticas_partido_id, minuto, accion, equipo,
+              jugador_id, jugador_nombre, dorsal, detalles, orden_accion
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              estadisticasId,
+              accion.minuto,
+              accion.accion,
+              accion.equipo,
+              accion.jugadorId || null,
+              accion.jugadorNombre || null,
+              accion.dorsal || null,
+              accion.detalles || null,
+              accion.ordenAccion,
+            ]
+          );
+        }
+      }
+
+      // 6. Insertar tiempos de juego
+      if (tiemposJuego && tiemposJuego.length > 0) {
+        for (const tiempo of tiemposJuego) {
+          await client.query(
+            `INSERT INTO tiempos_juego_partido (
+              estadisticas_partido_id, jugador_id, 
+              minuto_entrada, minuto_salida, posicion, duracion_minutos
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              estadisticasId,
+              tiempo.jugadorId,
+              tiempo.minutoEntrada || 0,
+              tiempo.minutoSalida || null,
+              tiempo.posicion || null,
+              tiempo.duracionMinutos || 0,
+            ]
+          );
+        }
+      }
+
+      // Commit de la transacción
+      await client.query("COMMIT");
+
+      console.log("✅ Partido finalizado exitosamente:", {
+        partidoId: id,
+        estadisticasId,
+      });
+
+      res.json({
+        message: "Partido finalizado y estadísticas guardadas correctamente",
+        estadisticasId,
+        partidoId: id,
+      });
+    } catch (error) {
+      // Rollback en caso de error
+      await client.query("ROLLBACK");
+      console.error("❌ Error al finalizar partido:", error);
+      next(error);
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export function createPartidoController(container) {
@@ -329,5 +502,7 @@ export function createPartidoController(container) {
       controller.registrarAsistencia(req, res, next),
     actualizarAsistencia: (req, res, next) =>
       controller.actualizarAsistencia(req, res, next),
+    finalizarPartido: (req, res, next) =>
+      controller.finalizarPartido(req, res, next),
   };
 }

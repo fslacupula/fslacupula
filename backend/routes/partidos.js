@@ -22,4 +22,7 @@ router.put(
   partidoController.actualizarAsistencia
 );
 
+// Finalizar partido con estadísticas
+router.post("/:id/finalizar", esGestor, partidoController.finalizarPartido);
+
 export default router;

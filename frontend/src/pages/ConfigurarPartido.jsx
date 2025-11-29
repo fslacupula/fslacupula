@@ -826,6 +826,128 @@ function ConfigurarPartido() {
     }
   };
 
+  // Función para preparar y enviar todas las estadísticas al finalizar el partido
+  const handleFinalizarPartido = async () => {
+    if (!partidoId) {
+      alert("No hay un partido activo para finalizar");
+      return;
+    }
+
+    // Validar que haya datos mínimos
+    if (
+      historialAcciones.length === 0 &&
+      golesLocal === 0 &&
+      golesVisitante === 0
+    ) {
+      const confirmar = confirm(
+        "No hay acciones registradas. ¿Estás seguro de que quieres finalizar el partido sin estadísticas?"
+      );
+      if (!confirmar) return;
+    }
+
+    const confirmarFinal = confirm(
+      `¿Finalizar partido?\n\nResultado: ${golesLocal} - ${golesVisitante}\n` +
+        `Faltas: ${faltasLocal} - ${faltasVisitante}\n` +
+        `Acciones registradas: ${historialAcciones.length}\n\n` +
+        `Una vez finalizado, no podrás modificar las estadísticas.`
+    );
+
+    if (!confirmarFinal) return;
+
+    try {
+      // 1. Preparar estadísticas generales del partido
+      const estadisticasPartido = {
+        golesLocal,
+        golesVisitante,
+        faltasLocal,
+        faltasVisitante,
+        dorsalesVisitantes: Array.from(dorsalesVisitantes),
+        duracionMinutos: Math.floor(tiempo / 60), // Convertir segundos a minutos
+      };
+
+      // 2. Preparar estadísticas de jugadores
+      const estadisticasJugadores = jugadores.map((jugador) => {
+        const stats = estadisticas[jugador.id] || {};
+        const tiempoEntrada = tiemposEntrada[jugador.id];
+        const minutosJugados = tiempoEntrada
+          ? Math.floor((tiempo - tiempoEntrada) / 60)
+          : 0;
+
+        return {
+          jugadorId: jugador.usuario_id || jugador.id,
+          posicion: jugador.posicion || null,
+          minutosJugados,
+          goles: stats.goles || 0,
+          asistencias: stats.asistencias || 0,
+          tarjetasAmarillas: stats.amarillas || 0,
+          tarjetasRojas: stats.rojas || 0,
+          paradas: stats.paradas || 0,
+          golesRecibidos: stats.goles_recibidos || 0,
+        };
+      });
+
+      // 3. Preparar staff (si hay tarjetas al staff)
+      const staffConTarjetas = [];
+      // Aquí podrías agregar lógica para staff si la implementas
+
+      // 4. Preparar historial de acciones con orden
+      const historialConOrden = historialAcciones.map((accion, index) => ({
+        ...accion,
+        ordenAccion: index + 1,
+      }));
+
+      // 5. Preparar tiempos de juego
+      const tiemposJuego = Object.entries(tiemposEntrada).map(
+        ([jugadorId, tiempoEntrada]) => {
+          const jugador = jugadores.find((j) => j.id === parseInt(jugadorId));
+          return {
+            jugadorId: jugador?.usuario_id || parseInt(jugadorId),
+            minutoEntrada: Math.floor(tiempoEntrada / 60),
+            minutoSalida: null, // No hay salidas en este momento
+            posicion: jugador?.posicion || null,
+            duracionMinutos: Math.floor((tiempo - tiempoEntrada) / 60),
+          };
+        }
+      );
+
+      // 6. Preparar el payload completo
+      const payload = {
+        estadisticas: estadisticasPartido,
+        jugadores: estadisticasJugadores,
+        staff: staffConTarjetas,
+        historialAcciones: historialConOrden,
+        tiemposJuego,
+      };
+
+      console.log("📊 Enviando datos para finalizar partido:", payload);
+
+      // 7. Enviar al backend
+      const response = await partidos.finalizarPartido(partidoId, payload);
+
+      console.log("✅ Respuesta del servidor:", response.data);
+
+      // 8. Limpiar localStorage
+      localStorage.removeItem("estadisticasPartido");
+      localStorage.removeItem("historialAcciones");
+      localStorage.removeItem("tiemposEntrada");
+
+      // 9. Mostrar mensaje de éxito
+      alert(
+        `¡Partido finalizado exitosamente!\n\nResultado: ${golesLocal} - ${golesVisitante}\n\nLas estadísticas se han guardado correctamente.`
+      );
+
+      // 10. Redirigir al dashboard
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("❌ Error al finalizar partido:", error);
+      alert(
+        `Error al finalizar el partido: ${
+          error.response?.data?.error || error.message
+        }`
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -2279,6 +2401,61 @@ function ConfigurarPartido() {
             Volver
           </button>
         </div>
+
+        {/* Botón Finalizar Partido - Solo visible si hay un partido activo */}
+        {partidoId && partidoInfo && (
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-lg p-6 mb-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="text-white">
+                <h3 className="text-xl font-bold mb-2">¿Finalizar Partido?</h3>
+                <p className="text-sm opacity-90">
+                  Al finalizar, se guardarán todas las estadísticas en la base
+                  de datos.
+                </p>
+                <div className="mt-3 space-y-1 text-sm">
+                  <p>
+                    <span className="font-semibold">Resultado:</span>{" "}
+                    {golesLocal} - {golesVisitante}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Faltas:</span> {faltasLocal}{" "}
+                    - {faltasVisitante}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Acciones registradas:</span>{" "}
+                    {historialAcciones.length}
+                  </p>
+                  <p>
+                    <span className="font-semibold">
+                      Jugadores participantes:
+                    </span>{" "}
+                    {Object.keys(tiemposEntrada).length}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleFinalizarPartido}
+                className="px-8 py-4 bg-white hover:bg-gray-100 text-green-600 font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-3 text-lg"
+                title="Guardar todas las estadísticas y finalizar el partido"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Finalizar Partido
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
