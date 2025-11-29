@@ -11,6 +11,7 @@ import DashboardGestor from "./pages/DashboardGestor";
 import DetalleAsistencia from "./pages/DetalleAsistencia";
 import Alineacion from "./pages/Alineacion";
 import ConfigurarPartido from "./pages/ConfigurarPartido";
+import ActaPartido from "./pages/ActaPartido";
 import { AuthProvider, useAuthContext } from "@contexts";
 
 function AppRoutes() {
@@ -65,6 +66,10 @@ function AppRoutes() {
             <Navigate to="/login" />
           )
         }
+      />
+      <Route
+        path="/acta-partido/:id"
+        element={usuario ? <ActaPartido /> : <Navigate to="/login" />}
       />
       <Route
         path="/"

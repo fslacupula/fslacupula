@@ -30,6 +30,7 @@ export class PartidoRepositoryPg {
       observaciones: row.observaciones,
       creadoPor: row.creado_por,
       createdAt: row.created_at,
+      estado: row.estado,
     });
   }
 

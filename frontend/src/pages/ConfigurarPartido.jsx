@@ -22,6 +22,13 @@ function ConfigurarPartido() {
   const [faltasLocal, setFaltasLocal] = useState(0);
   const [faltasVisitante, setFaltasVisitante] = useState(0);
   const [cronometroActivo, setCronometroActivo] = useState(false);
+  const [tiempoCronometro, setTiempoCronometro] = useState(0); // Tiempo acumulado del cronómetro en segundos
+  const [timestampInicioCronometro, setTimestampInicioCronometro] =
+    useState(null); // Timestamp de cuando se activó el cronómetro
+
+  // Contadores independientes por jugador
+  const [contadoresJugadores, setContadoresJugadores] = useState({}); // { jugadorId: { tiempoAcumulado: segundos, activo: boolean, timestampInicio: timestamp } }
+
   const [tiemposEntrada, setTiemposEntrada] = useState({}); // {jugadorId: timestampEnSegundos}
   const [tiemposSalida, setTiemposSalida] = useState({}); // {jugadorId: timestampEnSegundos de última salida}
   const [flashEffect, setFlashEffect] = useState({
@@ -41,9 +48,62 @@ function ConfigurarPartido() {
   const [accionActiva, setAccionActiva] = useState(null); // null | "amarilla" | "roja" | "gol" | "falta"
   const [posicionSeleccionada, setPosicionSeleccionada] = useState(null); // null | "portero" | "cierre" | "alaSuperior" | "alaInferior" | "pivote"
 
+  // Estados para el flujo del partido
+  const [estadoPartido, setEstadoPartido] = useState("configuracion"); // "configuracion" | "primera_parte" | "descanso" | "segunda_parte" | "finalizado"
+  const [periodoActual, setPeriodoActual] = useState(1); // 1 o 2
+  const [faltasLocalPrimera, setFaltasLocalPrimera] = useState(0);
+  const [faltasLocalSegunda, setFaltasLocalSegunda] = useState(0);
+  const [faltasVisitantePrimera, setFaltasVisitantePrimera] = useState(0);
+  const [faltasVisitanteSegunda, setFaltasVisitanteSegunda] = useState(0);
+
+  // Estados para confirmaciones
+  const [confirmacionPendiente, setConfirmacionPendiente] = useState(null); // { tipo: string, data: any, timestamp: number }
+  const [tiempoRestanteConfirmacion, setTiempoRestanteConfirmacion] =
+    useState(0);
+
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // Actualizar faltas totales cuando cambian las faltas por período
+  useEffect(() => {
+    // Mostrar solo las faltas del período actual en el marcador
+    if (periodoActual === 1) {
+      setFaltasLocal(faltasLocalPrimera);
+      setFaltasVisitante(faltasVisitantePrimera);
+    } else if (periodoActual === 2) {
+      setFaltasLocal(faltasLocalSegunda);
+      setFaltasVisitante(faltasVisitanteSegunda);
+    }
+  }, [
+    faltasLocalPrimera,
+    faltasLocalSegunda,
+    faltasVisitantePrimera,
+    faltasVisitanteSegunda,
+    periodoActual,
+  ]);
+
+  // Contador para confirmaciones temporales (5 segundos)
+  useEffect(() => {
+    if (confirmacionPendiente) {
+      const tiempoInicio = confirmacionPendiente.timestamp;
+      const interval = setInterval(() => {
+        const tiempoTranscurrido = Date.now() - tiempoInicio;
+        const restante = Math.max(0, 5000 - tiempoTranscurrido);
+        setTiempoRestanteConfirmacion(Math.ceil(restante / 1000));
+
+        if (restante <= 0) {
+          // Cancelar confirmación
+          setConfirmacionPendiente(null);
+          setTiempoRestanteConfirmacion(0);
+        }
+      }, 100);
+
+      return () => clearInterval(interval);
+    } else {
+      setTiempoRestanteConfirmacion(0);
+    }
+  }, [confirmacionPendiente]);
 
   // Forzar re-render cada segundo para actualizar tiempos de descanso
   const [actualizacionTiempo, setActualizacionTiempo] = useState(Date.now());
@@ -85,109 +145,115 @@ function ConfigurarPartido() {
     }
   }, [mostrarTarjeta.visible]);
 
-  // Ajustar tiempos de entrada cuando se activa/desactiva el cronómetro
+  // Gestionar el inicio/pausa del cronómetro
   useEffect(() => {
-    const ahora = Date.now();
-
     if (cronometroActivo) {
-      // Cuando se ACTIVA el cronómetro, actualizar todos los tiemposEntrada a AHORA
-      // para que empiecen a contar desde este momento (no desde cuando entraron)
-      setTiemposEntrada((prev) => {
+      // Cuando se ACTIVA el cronómetro
+      const ahora = Date.now();
+      setTimestampInicioCronometro(ahora);
+
+      // Activar contadores para jugadores que están en pista en este momento
+      setContadoresJugadores((prev) => {
         const nuevos = { ...prev };
-        Object.keys(nuevos).forEach((jugadorId) => {
-          nuevos[jugadorId] = ahora;
+
+        Object.values(jugadoresAsignados).forEach((jugador) => {
+          if (jugador && jugador.id) {
+            if (!nuevos[jugador.id]) {
+              nuevos[jugador.id] = {
+                tiempoAcumulado: 0,
+                activo: false,
+                timestampInicio: null,
+              };
+            }
+            // Solo activar si no estaba ya activo (para evitar resetear el timestamp)
+            if (!nuevos[jugador.id].activo) {
+              nuevos[jugador.id].activo = true;
+              nuevos[jugador.id].timestampInicio = ahora;
+            }
+          }
         });
+
         return nuevos;
       });
     } else {
-      // Cuando se PAUSA el cronómetro, acumular el tiempo jugado hasta ahora
-      setTiemposEntrada((prev) => {
-        const tiemposActuales = { ...prev };
+      // Cuando se PAUSA el cronómetro
+      if (timestampInicioCronometro) {
+        const tiempoTranscurrido =
+          (Date.now() - timestampInicioCronometro) / 1000;
+        setTiempoCronometro((prev) => prev + tiempoTranscurrido);
+        setTimestampInicioCronometro(null);
 
-        setEstadisticas((prevStats) => {
-          const nuevasStats = { ...prevStats };
+        // Pausar todos los contadores y acumular su tiempo
+        const ahora = Date.now();
+        setContadoresJugadores((prev) => {
+          const nuevos = { ...prev };
 
-          Object.entries(tiemposActuales).forEach(
-            ([jugadorId, tiempoEntrada]) => {
-              // Calcular tiempo de esta sesión antes de pausar
-              const tiempoEstaSesion = (ahora - tiempoEntrada) / 1000;
-              const tiempoAcumuladoAnterior =
-                nuevasStats[jugadorId]?.minutosAcumulados || 0;
-
-              if (!nuevasStats[jugadorId]) {
-                nuevasStats[jugadorId] = {
-                  goles: 0,
-                  asistencias: 0,
-                  paradas: 0,
-                  faltas: 0,
-                  amarillas: 0,
-                  rojas: 0,
-                  minutos: 0,
-                };
-              }
-
-              // Acumular el tiempo jugado hasta la pausa
-              nuevasStats[jugadorId] = {
-                ...nuevasStats[jugadorId],
-                minutos: tiempoAcumuladoAnterior + tiempoEstaSesion,
-                minutosAcumulados: tiempoAcumuladoAnterior + tiempoEstaSesion,
-              };
+          Object.keys(nuevos).forEach((jugadorId) => {
+            if (nuevos[jugadorId].activo && nuevos[jugadorId].timestampInicio) {
+              const tiempoSesion =
+                (ahora - nuevos[jugadorId].timestampInicio) / 1000;
+              nuevos[jugadorId].tiempoAcumulado += tiempoSesion;
+              nuevos[jugadorId].activo = false;
+              nuevos[jugadorId].timestampInicio = null;
             }
-          );
+          });
 
-          return nuevasStats;
+          return nuevos;
         });
-
-        return tiemposActuales; // Mantener los IDs pero serán actualizados al reanudar
-      });
+      }
     }
-  }, [cronometroActivo]);
+  }, [cronometroActivo]); // Eliminado jugadoresAsignados de las dependencias
 
-  // Actualizar minutos jugados cada segundo cuando el cronómetro está activo
+  // Intervalo para actualizar estadísticas de jugadores con contadores activos
   useEffect(() => {
     let intervalo;
     if (cronometroActivo) {
       intervalo = setInterval(() => {
         const ahora = Date.now();
+
         setEstadisticas((prev) => {
           const nuevasStats = { ...prev };
 
-          // Buscar jugadores en pista
-          Object.values(jugadoresAsignados).forEach((jugador) => {
-            if (jugador && tiemposEntrada[jugador.id]) {
-              // Calcular SOLO el tiempo de esta sesión actual en el campo
-              const segundosEstaSesion = Math.floor(
-                (ahora - tiemposEntrada[jugador.id]) / 1000
-              );
+          Object.entries(contadoresJugadores).forEach(
+            ([jugadorId, contador]) => {
+              if (contador.activo && contador.timestampInicio) {
+                const tiempoSesionActual =
+                  (ahora - contador.timestampInicio) / 1000;
+                const tiempoTotal =
+                  contador.tiempoAcumulado + tiempoSesionActual;
 
-              if (!nuevasStats[jugador.id]) {
-                nuevasStats[jugador.id] = {
-                  goles: 0,
-                  asistencias: 0,
-                  paradas: 0,
-                  faltas: 0,
-                  amarillas: 0,
-                  rojas: 0,
-                  minutos: 0,
-                };
+                if (!nuevasStats[jugadorId]) {
+                  nuevasStats[jugadorId] = {
+                    goles: 0,
+                    asistencias: 0,
+                    paradas: 0,
+                    faltas: 0,
+                    amarillas: 0,
+                    rojas: 0,
+                    minutos: 0,
+                    minutosAcumulados: 0,
+                  };
+                }
+
+                nuevasStats[jugadorId].minutos = tiempoTotal;
+                nuevasStats[jugadorId].minutosAcumulados = tiempoTotal;
               }
-
-              // Mantener el tiempo acumulado de sesiones anteriores y solo actualizar con el tiempo de esta sesión
-              const tiempoAcumuladoAnterior =
-                nuevasStats[jugador.id].minutosAcumulados || 0;
-              nuevasStats[jugador.id] = {
-                ...nuevasStats[jugador.id],
-                minutos: tiempoAcumuladoAnterior + segundosEstaSesion,
-              };
             }
-          });
+          );
 
           return nuevasStats;
         });
       }, 1000);
     }
     return () => clearInterval(intervalo);
-  }, [cronometroActivo, jugadoresAsignados, tiemposEntrada]);
+  }, [cronometroActivo, contadoresJugadores]);
+
+  // Función helper para formatear segundos a mm:ss
+  const formatearTiempo = (segundos) => {
+    const mins = Math.floor(segundos / 60);
+    const segs = Math.floor(segundos % 60);
+    return `${String(mins).padStart(2, "0")}:${String(segs).padStart(2, "0")}`;
+  };
 
   const handleDragStart = (e, jugador) => {
     e.dataTransfer.setData("jugador", JSON.stringify(jugador));
@@ -230,12 +296,26 @@ function ConfigurarPartido() {
       return nuevo;
     });
 
-    // Registrar tiempo de entrada si el jugador no tiene uno ya
-    if (!tiemposEntrada[jugador.id]) {
-      setTiemposEntrada((prev) => ({
-        ...prev,
-        [jugador.id]: Date.now(),
-      }));
+    // Activar contador del jugador si el cronómetro está activo
+    if (cronometroActivo) {
+      const ahora = Date.now();
+      setContadoresJugadores((prev) => {
+        const nuevoContador = { ...prev };
+
+        if (!nuevoContador[jugador.id]) {
+          nuevoContador[jugador.id] = {
+            tiempoAcumulado: 0,
+            activo: false,
+            timestampInicio: null,
+          };
+        }
+
+        // Activar su contador
+        nuevoContador[jugador.id].activo = true;
+        nuevoContador[jugador.id].timestampInicio = ahora;
+
+        return nuevoContador;
+      });
     }
   };
 
@@ -260,21 +340,21 @@ function ConfigurarPartido() {
       if (posicionActual) {
         const [posicion] = posicionActual;
 
-        // Si tiene tiempo de entrada, acumular el tiempo jugado de esta sesión
-        if (tiemposEntrada[jugador.id]) {
-          const tiempoEstaSesion =
-            (Date.now() - tiemposEntrada[jugador.id]) / 1000;
-          setEstadisticas((prev) => {
-            const tiempoAcumuladoAnterior =
-              prev[jugador.id]?.minutosAcumulados || 0;
-            return {
-              ...prev,
-              [jugador.id]: {
-                ...prev[jugador.id],
-                minutos: tiempoAcumuladoAnterior + tiempoEstaSesion,
-                minutosAcumulados: tiempoAcumuladoAnterior + tiempoEstaSesion, // Guardar para próxima sesión
-              },
-            };
+        // Desactivar el contador del jugador y acumular tiempo si está activo
+        if (cronometroActivo) {
+          const ahora = Date.now();
+          setContadoresJugadores((prev) => {
+            const nuevoContador = { ...prev };
+
+            if (nuevoContador[jugador.id] && nuevoContador[jugador.id].activo) {
+              const tiempoSesion =
+                (ahora - nuevoContador[jugador.id].timestampInicio) / 1000;
+              nuevoContador[jugador.id].tiempoAcumulado += tiempoSesion;
+              nuevoContador[jugador.id].activo = false;
+              nuevoContador[jugador.id].timestampInicio = null;
+            }
+
+            return nuevoContador;
           });
         }
 
@@ -290,13 +370,6 @@ function ConfigurarPartido() {
           ...prev,
           [jugador.id]: Date.now(),
         }));
-
-        // Limpiar su tiempo de entrada
-        setTiemposEntrada((prev) => {
-          const nuevo = { ...prev };
-          delete nuevo[jugador.id];
-          return nuevo;
-        });
       }
     }
   };
@@ -322,23 +395,28 @@ function ConfigurarPartido() {
           pos !== posicion && jug && jug.id === jugadorEnPosicion.id
       );
 
-      // Si ya no está en ninguna posición, acumular tiempo y registrar salida
+      // Si ya no está en ninguna posición, desactivar contador y registrar salida
       if (!sigueEnPista) {
-        // Si tiene tiempo de entrada, acumular el tiempo jugado de esta sesión
-        if (tiemposEntrada[jugadorEnPosicion.id]) {
-          const tiempoEstaSesion =
-            (Date.now() - tiemposEntrada[jugadorEnPosicion.id]) / 1000;
-          setEstadisticas((prev) => {
-            const tiempoAcumuladoAnterior =
-              prev[jugadorEnPosicion.id]?.minutosAcumulados || 0;
-            return {
-              ...prev,
-              [jugadorEnPosicion.id]: {
-                ...prev[jugadorEnPosicion.id],
-                minutos: tiempoAcumuladoAnterior + tiempoEstaSesion,
-                minutosAcumulados: tiempoAcumuladoAnterior + tiempoEstaSesion, // Guardar para próxima sesión
-              },
-            };
+        // Desactivar el contador del jugador si está activo
+        if (cronometroActivo) {
+          const ahora = Date.now();
+          setContadoresJugadores((prev) => {
+            const nuevoContador = { ...prev };
+
+            if (
+              nuevoContador[jugadorEnPosicion.id] &&
+              nuevoContador[jugadorEnPosicion.id].activo
+            ) {
+              const tiempoSesion =
+                (ahora - nuevoContador[jugadorEnPosicion.id].timestampInicio) /
+                1000;
+              nuevoContador[jugadorEnPosicion.id].tiempoAcumulado +=
+                tiempoSesion;
+              nuevoContador[jugadorEnPosicion.id].activo = false;
+              nuevoContador[jugadorEnPosicion.id].timestampInicio = null;
+            }
+
+            return nuevoContador;
           });
         }
 
@@ -346,12 +424,6 @@ function ConfigurarPartido() {
           ...prev,
           [jugadorEnPosicion.id]: Date.now(),
         }));
-
-        setTiemposEntrada((prev) => {
-          const nuevo = { ...prev };
-          delete nuevo[jugadorEnPosicion.id];
-          return nuevo;
-        });
       }
     }
   };
@@ -393,6 +465,14 @@ function ConfigurarPartido() {
       (jugador.id.toString().startsWith("visitante-") ||
         jugador.id.toString().includes("-visitante-"));
 
+    // Calcular tiempo actual del cronómetro (incluye tiempo acumulado + tiempo actual si está activo)
+    const tiempoActualCronometro =
+      cronometroActivo && timestampInicioCronometro
+        ? tiempoCronometro + (Date.now() - timestampInicioCronometro) / 1000
+        : tiempoCronometro;
+
+    const minutoPartido = Math.floor(tiempoActualCronometro / 60);
+
     const nuevaAccion = {
       id: Date.now(),
       jugadorId: jugador.id,
@@ -400,8 +480,17 @@ function ConfigurarPartido() {
       dorsal: jugador.numero_dorsal,
       accion,
       timestamp: new Date().toISOString(),
+      minuto_partido: minutoPartido,
       equipo: esVisitante ? "visitante" : "local",
+      periodo: periodoActual, // Añadir el período en el que ocurrió la acción
     };
+
+    console.log(
+      `🎯 Registrando ${accion} en minuto ${minutoPartido} (cronómetro: ${Math.floor(
+        tiempoActualCronometro
+      )}s, activo: ${cronometroActivo})`,
+      nuevaAccion
+    );
 
     setHistorialAcciones((prev) => [...prev, nuevaAccion]);
 
@@ -431,36 +520,68 @@ function ConfigurarPartido() {
       }
     }
 
-    // Incrementar faltas según el equipo (máximo 5)
+    // Incrementar faltas según el equipo (máximo 5) y período actual
     if (accion === "falta") {
       if (esVisitante) {
-        setFaltasVisitante((prev) => {
-          const nuevasFaltas = Math.min(5, prev + 1);
-          // Mostrar animación cuando se llega a 5 faltas
-          if (nuevasFaltas === 5 && prev === 4) {
-            setMostrarTarjeta({
-              visible: true,
-              tipo: "5faltas",
-              dorsal: null,
-              equipo: "visitante",
-            });
-          }
-          return nuevasFaltas;
-        });
+        if (periodoActual === 1) {
+          setFaltasVisitantePrimera((prev) => {
+            const nuevasFaltas = Math.min(5, prev + 1);
+            // Mostrar animación cuando se llega a 5 faltas
+            if (nuevasFaltas === 5 && prev === 4) {
+              setMostrarTarjeta({
+                visible: true,
+                tipo: "5faltas",
+                dorsal: null,
+                equipo: "visitante",
+              });
+            }
+            return nuevasFaltas;
+          });
+        } else {
+          setFaltasVisitanteSegunda((prev) => {
+            const nuevasFaltas = Math.min(5, prev + 1);
+            // Mostrar animación cuando se llega a 5 faltas
+            if (nuevasFaltas === 5 && prev === 4) {
+              setMostrarTarjeta({
+                visible: true,
+                tipo: "5faltas",
+                dorsal: null,
+                equipo: "visitante",
+              });
+            }
+            return nuevasFaltas;
+          });
+        }
       } else {
-        setFaltasLocal((prev) => {
-          const nuevasFaltas = Math.min(5, prev + 1);
-          // Mostrar animación cuando se llega a 5 faltas
-          if (nuevasFaltas === 5 && prev === 4) {
-            setMostrarTarjeta({
-              visible: true,
-              tipo: "5faltas",
-              dorsal: null,
-              equipo: "local",
-            });
-          }
-          return nuevasFaltas;
-        });
+        if (periodoActual === 1) {
+          setFaltasLocalPrimera((prev) => {
+            const nuevasFaltas = Math.min(5, prev + 1);
+            // Mostrar animación cuando se llega a 5 faltas
+            if (nuevasFaltas === 5 && prev === 4) {
+              setMostrarTarjeta({
+                visible: true,
+                tipo: "5faltas",
+                dorsal: null,
+                equipo: "local",
+              });
+            }
+            return nuevasFaltas;
+          });
+        } else {
+          setFaltasLocalSegunda((prev) => {
+            const nuevasFaltas = Math.min(5, prev + 1);
+            // Mostrar animación cuando se llega a 5 faltas
+            if (nuevasFaltas === 5 && prev === 4) {
+              setMostrarTarjeta({
+                visible: true,
+                tipo: "5faltas",
+                dorsal: null,
+                equipo: "local",
+              });
+            }
+            return nuevasFaltas;
+          });
+        }
       }
     }
 
@@ -542,12 +663,22 @@ function ConfigurarPartido() {
       }
     }
 
-    // Decrementar faltas según el equipo
+    // Decrementar faltas según el equipo y período
     if (ultimaAccion.accion === "falta") {
+      const periodoFalta = ultimaAccion.periodo || 1; // Default al período 1 si no existe
+
       if (ultimaAccion.equipo === "visitante") {
-        setFaltasVisitante((prev) => Math.max(0, prev - 1));
+        if (periodoFalta === 1) {
+          setFaltasVisitantePrimera((prev) => Math.max(0, prev - 1));
+        } else {
+          setFaltasVisitanteSegunda((prev) => Math.max(0, prev - 1));
+        }
       } else {
-        setFaltasLocal((prev) => Math.max(0, prev - 1));
+        if (periodoFalta === 1) {
+          setFaltasLocalPrimera((prev) => Math.max(0, prev - 1));
+        } else {
+          setFaltasLocalSegunda((prev) => Math.max(0, prev - 1));
+        }
       }
     }
 
@@ -826,6 +957,139 @@ function ConfigurarPartido() {
     }
   };
 
+  // Función para iniciar el partido (después de configurar titulares)
+  const iniciarPartido = () => {
+    const jugadoresEnPista = Object.keys(jugadoresAsignados).length;
+    if (jugadoresEnPista !== 5) {
+      alert(
+        `Debes colocar exactamente 5 jugadores en la pista para iniciar el partido.\n\nActualmente hay ${jugadoresEnPista} jugadores en la pista.`
+      );
+      return;
+    }
+
+    const confirmar = confirm(
+      "¿Iniciar partido?\n\nUna vez iniciado, se activará el cronómetro y podrás registrar acciones."
+    );
+
+    if (!confirmar) return;
+
+    setEstadoPartido("primera_parte");
+    setPeriodoActual(1);
+
+    // Activar cronómetro - el useEffect se encargará de establecer tiemposEntrada para jugadores en pista
+    setCronometroActivo(true);
+  };
+
+  // Función para finalizar primera parte
+  const finalizarPrimeraParte = () => {
+    const confirmar = confirm(
+      `¿Finalizar primera parte?\n\nResultado parcial: ${golesLocal} - ${golesVisitante}\n\nSe resetearán las faltas del primer período.`
+    );
+
+    if (!confirmar) return;
+
+    setEstadoPartido("descanso");
+    setCronometroActivo(false);
+    // Las faltas del primer período ya están guardadas en faltasLocalPrimera y faltasVisitantePrimera
+  };
+
+  // Función para iniciar segunda parte
+  const iniciarSegundaParte = () => {
+    const confirmar = confirm(
+      "¿Iniciar segunda parte?\n\nSe reactivará el cronómetro."
+    );
+
+    if (!confirmar) return;
+
+    setEstadoPartido("segunda_parte");
+    setPeriodoActual(2);
+    setTiempoCronometro(0);
+    setTimestampInicioCronometro(Date.now());
+    setCronometroActivo(true);
+  };
+
+  // Funciones de confirmación temporal (5 segundos)
+  const solicitarConfirmacion = (tipo, data) => {
+    setConfirmacionPendiente({
+      tipo,
+      data,
+      timestamp: Date.now(),
+    });
+  };
+
+  const confirmarAccion = () => {
+    if (!confirmacionPendiente) return;
+
+    const { tipo, data } = confirmacionPendiente;
+
+    switch (tipo) {
+      case "toggle_cronometro":
+        setCronometroActivo(data.nuevoEstado);
+        break;
+      case "incrementar_gol_local":
+        setGolesLocal((prev) => prev + 1);
+        break;
+      case "decrementar_gol_local":
+        setGolesLocal((prev) => Math.max(0, prev - 1));
+        break;
+      case "incrementar_gol_visitante":
+        setGolesVisitante((prev) => prev + 1);
+        break;
+      case "decrementar_gol_visitante":
+        setGolesVisitante((prev) => Math.max(0, prev - 1));
+        break;
+      case "resetear_cronometro":
+        if (estadoPartido !== "configuracion") {
+          setTiempoCronometro(0);
+          setTimestampInicioCronometro(null);
+          setTiemposEntrada({});
+          setTiemposSalida({});
+          setCronometroActivo(false);
+        }
+        break;
+    }
+
+    setConfirmacionPendiente(null);
+    setTiempoRestanteConfirmacion(0);
+  };
+
+  const cancelarConfirmacion = () => {
+    setConfirmacionPendiente(null);
+    setTiempoRestanteConfirmacion(0);
+  };
+
+  // Funciones wrapper para incrementar/decrementar goles con confirmación
+  const handleIncrementarGolLocal = () => {
+    if (estadoPartido === "configuracion") return;
+    solicitarConfirmacion("incrementar_gol_local", {});
+  };
+
+  const handleDecrementarGolLocal = () => {
+    if (estadoPartido === "configuracion" || golesLocal === 0) return;
+    solicitarConfirmacion("decrementar_gol_local", {});
+  };
+
+  const handleIncrementarGolVisitante = () => {
+    if (estadoPartido === "configuracion") return;
+    solicitarConfirmacion("incrementar_gol_visitante", {});
+  };
+
+  const handleDecrementarGolVisitante = () => {
+    if (estadoPartido === "configuracion" || golesVisitante === 0) return;
+    solicitarConfirmacion("decrementar_gol_visitante", {});
+  };
+
+  // Modificar la función de toggle cronómetro para usar confirmación
+  const handleToggleCronometro = () => {
+    if (estadoPartido === "configuracion") {
+      return; // No permitir en estado de configuración
+    }
+
+    solicitarConfirmacion("toggle_cronometro", {
+      nuevoEstado: !cronometroActivo,
+    });
+  };
+
   // Función para preparar y enviar todas las estadísticas al finalizar el partido
   const handleFinalizarPartido = async () => {
     if (!partidoId) {
@@ -859,24 +1123,25 @@ function ConfigurarPartido() {
       const estadisticasPartido = {
         golesLocal,
         golesVisitante,
-        faltasLocal,
-        faltasVisitante,
+        faltasLocal: faltasLocalPrimera + faltasLocalSegunda,
+        faltasVisitante: faltasVisitantePrimera + faltasVisitanteSegunda,
+        faltasLocalPrimera,
+        faltasLocalSegunda,
+        faltasVisitantePrimera,
+        faltasVisitanteSegunda,
         dorsalesVisitantes: Array.from(dorsalesVisitantes),
-        duracionMinutos: Math.floor(tiempo / 60), // Convertir segundos a minutos
+        duracionMinutos: Math.floor(tiempoCronometro / 60), // Convertir segundos a minutos
       };
 
       // 2. Preparar estadísticas de jugadores
       const estadisticasJugadores = jugadores.map((jugador) => {
         const stats = estadisticas[jugador.id] || {};
-        const tiempoEntrada = tiemposEntrada[jugador.id];
-        const minutosJugados = tiempoEntrada
-          ? Math.floor((tiempo - tiempoEntrada) / 60)
-          : 0;
+        const minutosJugados = Math.floor(stats.minutos || 0); // Convertir a entero (segundos)
 
         return {
           jugadorId: jugador.usuario_id || jugador.id,
           posicion: jugador.posicion || null,
-          minutosJugados,
+          minutosJugados, // Enviar en segundos como entero
           goles: stats.goles || 0,
           asistencias: stats.asistencias || 0,
           tarjetasAmarillas: stats.amarillas || 0,
@@ -886,9 +1151,51 @@ function ConfigurarPartido() {
         };
       });
 
-      // 3. Preparar staff (si hay tarjetas al staff)
-      const staffConTarjetas = [];
-      // Aquí podrías agregar lógica para staff si la implementas
+      // 3. Preparar staff (con tarjetas si las tienen)
+      const staffConTarjetas = [
+        {
+          nombre: "Entrenador",
+          tipo: "entrenador",
+          equipo: "local",
+          tarjetasAmarillas: estadisticas["staff-E"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-E"]?.rojas || 0,
+        },
+        {
+          nombre: "Delegado",
+          tipo: "delegado",
+          equipo: "local",
+          tarjetasAmarillas: estadisticas["staff-D"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-D"]?.rojas || 0,
+        },
+        {
+          nombre: "Ayudante",
+          tipo: "ayudante",
+          equipo: "local",
+          tarjetasAmarillas: estadisticas["staff-A"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-A"]?.rojas || 0,
+        },
+        {
+          nombre: "Entrenador Visitante",
+          tipo: "entrenador",
+          equipo: "visitante",
+          tarjetasAmarillas: estadisticas["staff-visitante-E"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-visitante-E"]?.rojas || 0,
+        },
+        {
+          nombre: "Delegado Visitante",
+          tipo: "delegado",
+          equipo: "visitante",
+          tarjetasAmarillas: estadisticas["staff-visitante-D"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-visitante-D"]?.rojas || 0,
+        },
+        {
+          nombre: "Ayudante Visitante",
+          tipo: "ayudante",
+          equipo: "visitante",
+          tarjetasAmarillas: estadisticas["staff-visitante-A"]?.amarillas || 0,
+          tarjetasRojas: estadisticas["staff-visitante-A"]?.rojas || 0,
+        },
+      ]; // Enviar todo el staff, con o sin tarjetas
 
       // 4. Preparar historial de acciones con orden
       const historialConOrden = historialAcciones.map((accion, index) => ({
@@ -897,18 +1204,18 @@ function ConfigurarPartido() {
       }));
 
       // 5. Preparar tiempos de juego
-      const tiemposJuego = Object.entries(tiemposEntrada).map(
-        ([jugadorId, tiempoEntrada]) => {
-          const jugador = jugadores.find((j) => j.id === parseInt(jugadorId));
+      const tiemposJuego = jugadores
+        .filter((jugador) => estadisticas[jugador.id]?.minutos > 0)
+        .map((jugador) => {
+          const stats = estadisticas[jugador.id] || {};
           return {
-            jugadorId: jugador?.usuario_id || parseInt(jugadorId),
-            minutoEntrada: Math.floor(tiempoEntrada / 60),
-            minutoSalida: null, // No hay salidas en este momento
-            posicion: jugador?.posicion || null,
-            duracionMinutos: Math.floor((tiempo - tiempoEntrada) / 60),
+            jugadorId: jugador.usuario_id || jugador.id,
+            minutoEntrada: 0, // Se puede calcular del historial si es necesario
+            minutoSalida: null,
+            posicion: jugador.posicion || null,
+            duracionSegundos: Math.floor(stats.minutos || 0), // Enviar en segundos como entero
           };
-        }
-      );
+        });
 
       // 6. Preparar el payload completo
       const payload = {
@@ -920,6 +1227,15 @@ function ConfigurarPartido() {
       };
 
       console.log("📊 Enviando datos para finalizar partido:", payload);
+      console.log(
+        "📋 Historial con minutos:",
+        historialConOrden.map((a) => ({
+          accion: a.accion,
+          minuto_partido: a.minuto_partido,
+          jugador: a.jugadorNombre,
+          orden: a.ordenAccion,
+        }))
+      );
 
       // 7. Enviar al backend
       const response = await partidos.finalizarPartido(partidoId, payload);
@@ -969,9 +1285,15 @@ function ConfigurarPartido() {
           golesVisitante={golesVisitante}
           faltasLocal={faltasLocal}
           faltasVisitante={faltasVisitante}
-          setGolesLocal={setGolesLocal}
-          setGolesVisitante={setGolesVisitante}
-          onCronometroChange={setCronometroActivo}
+          onIncrementarGolLocal={handleIncrementarGolLocal}
+          onDecrementarGolLocal={handleDecrementarGolLocal}
+          onIncrementarGolVisitante={handleIncrementarGolVisitante}
+          onDecrementarGolVisitante={handleDecrementarGolVisitante}
+          onCronometroChange={handleToggleCronometro}
+          cronometroActivo={cronometroActivo}
+          tiempoCronometro={tiempoCronometro}
+          timestampInicioCronometro={timestampInicioCronometro}
+          estadoPartido={estadoPartido}
           flashEffect={flashEffect}
           jugadoresLocal={jugadores}
           jugadoresAsignados={jugadoresAsignados}
@@ -1369,15 +1691,19 @@ function ConfigurarPartido() {
                           }
                         >
                           <div className="flex flex-col items-center">
-                            <span className="text-white text-lg">
-                              {jugador.numero_dorsal}
-                            </span>
-                            <span className="text-white text-[8px] font-mono mt-0.5">
-                              {Math.floor(
-                                estadisticas[jugador.id]?.minutos || 0
-                              )}
-                              '
-                            </span>
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -1474,15 +1800,19 @@ function ConfigurarPartido() {
                           }
                         >
                           <div className="flex flex-col items-center">
-                            <span className="text-white text-lg">
-                              {jugador.numero_dorsal}
-                            </span>
-                            <span className="text-white text-[8px] font-mono mt-0.5">
-                              {Math.floor(
-                                estadisticas[jugador.id]?.minutos || 0
-                              )}
-                              '
-                            </span>
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -1575,15 +1905,19 @@ function ConfigurarPartido() {
                           }
                         >
                           <div className="flex flex-col items-center">
-                            <span className="text-white text-lg">
-                              {jugador.numero_dorsal}
-                            </span>
-                            <span className="text-white text-[8px] font-mono mt-0.5">
-                              {Math.floor(
-                                estadisticas[jugador.id]?.minutos || 0
-                              )}
-                              '
-                            </span>
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -1615,7 +1949,10 @@ function ConfigurarPartido() {
               <div className="flex justify-center items-center gap-3">
                 <button
                   onClick={deshacer}
-                  disabled={historialAcciones.length === 0}
+                  disabled={
+                    historialAcciones.length === 0 ||
+                    estadoPartido === "configuracion"
+                  }
                   className="w-24 h-[74px] bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center cursor-pointer border-2 border-transparent hover:border-white"
                 >
                   <svg
@@ -2232,7 +2569,8 @@ function ConfigurarPartido() {
               })
               .map((jugador) => {
                 const stats = estadisticas[jugador.id];
-                const minutos = Math.floor(stats?.minutos || 0);
+                const segundos = stats?.minutos || 0;
+                const tiempoFormateado = formatearTiempo(segundos);
                 const enPista = isJugadorAsignado(jugador.id);
                 const tieneAmarilla = stats?.amarillas > 0;
                 const tieneRoja = stats?.rojas > 0;
@@ -2258,10 +2596,9 @@ function ConfigurarPartido() {
                         </span>
                       </div>
                       <div className="flex items-center gap-0.5">
-                        <span className="font-bold text-gray-800 text-xl">
-                          {minutos}
+                        <span className="font-bold text-gray-800 text-base font-mono">
+                          {tiempoFormateado}
                         </span>
-                        <span className="text-gray-500 text-sm">'</span>
                       </div>
                     </div>
 
@@ -2402,6 +2739,162 @@ function ConfigurarPartido() {
           </button>
         </div>
 
+        {/* Botones de Control de Flujo del Partido */}
+        {partidoId && partidoInfo && (
+          <div className="mb-4 space-y-3">
+            {/* Botón INICIAR PARTIDO - Solo visible en estado "configuracion" */}
+            {estadoPartido === "configuracion" && (
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-6">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-white">
+                    <h3 className="text-xl font-bold mb-2">
+                      ¿Iniciar Partido?
+                    </h3>
+                    <p className="text-sm opacity-90">
+                      Coloca exactamente 5 jugadores en la pista antes de
+                      iniciar.
+                    </p>
+                    <p className="text-xs mt-2 opacity-75">
+                      Jugadores en pista:{" "}
+                      {Object.keys(jugadoresAsignados).length} / 5
+                    </p>
+                  </div>
+                  <button
+                    onClick={iniciarPartido}
+                    disabled={Object.keys(jugadoresAsignados).length !== 5}
+                    className="px-8 py-4 bg-white hover:bg-gray-100 text-blue-600 font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    title="Iniciar el partido y activar el cronómetro"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    INICIAR PARTIDO
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Botón FINALIZAR PRIMERA PARTE - Solo visible en estado "primera_parte" */}
+            {estadoPartido === "primera_parte" && (
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg shadow-lg p-6">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-white">
+                    <h3 className="text-xl font-bold mb-2">
+                      ¿Finalizar Primera Parte?
+                    </h3>
+                    <p className="text-sm opacity-90">
+                      Se detendrá el cronómetro y se resetearán las faltas.
+                    </p>
+                    <div className="mt-2 text-sm space-y-1">
+                      <p>
+                        <span className="font-semibold">
+                          Resultado parcial:
+                        </span>{" "}
+                        {golesLocal} - {golesVisitante}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Faltas 1ª parte:</span>{" "}
+                        {faltasLocalPrimera} - {faltasVisitantePrimera}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={finalizarPrimeraParte}
+                    className="px-8 py-4 bg-white hover:bg-gray-100 text-orange-600 font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-3 text-lg"
+                    title="Finalizar la primera parte"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    Finalizar Primera Parte
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Botón INICIAR SEGUNDA PARTE - Solo visible en estado "descanso" */}
+            {estadoPartido === "descanso" && (
+              <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg shadow-lg p-6">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-white">
+                    <h3 className="text-xl font-bold mb-2">
+                      ¿Iniciar Segunda Parte?
+                    </h3>
+                    <p className="text-sm opacity-90">
+                      Se reactivará el cronómetro y comenzará el segundo
+                      período.
+                    </p>
+                    <div className="mt-2 text-sm space-y-1">
+                      <p>
+                        <span className="font-semibold">Resultado:</span>{" "}
+                        {golesLocal} - {golesVisitante}
+                      </p>
+                      <p>
+                        <span className="font-semibold">
+                          Faltas acumuladas:
+                        </span>{" "}
+                        {faltasLocal} - {faltasVisitante}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={iniciarSegundaParte}
+                    className="px-8 py-4 bg-white hover:bg-gray-100 text-purple-600 font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-3 text-lg"
+                    title="Iniciar la segunda parte"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    Iniciar Segunda Parte
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Botón Finalizar Partido - Solo visible si hay un partido activo */}
         {partidoId && partidoInfo && (
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-lg p-6 mb-4">
@@ -2453,6 +2946,107 @@ function ConfigurarPartido() {
                 </svg>
                 Finalizar Partido
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmación con countdown de 5 segundos */}
+        {confirmacionPendiente && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 animate-slideUp">
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-yellow-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Confirmar acción
+                </h3>
+
+                <p className="text-gray-600 mb-6">
+                  {confirmacionPendiente.tipo === "toggle_cronometro" &&
+                    (confirmacionPendiente.data.nuevoEstado
+                      ? "¿Iniciar cronómetro?"
+                      : "¿Detener cronómetro?")}
+                  {confirmacionPendiente.tipo === "incrementar_gol_local" &&
+                    "¿Añadir gol al equipo local?"}
+                  {confirmacionPendiente.tipo === "decrementar_gol_local" &&
+                    "¿Eliminar gol al equipo local?"}
+                  {confirmacionPendiente.tipo === "incrementar_gol_visitante" &&
+                    "¿Añadir gol al equipo visitante?"}
+                  {confirmacionPendiente.tipo === "decrementar_gol_visitante" &&
+                    "¿Eliminar gol al equipo visitante?"}
+                  {confirmacionPendiente.tipo === "resetear_cronometro" &&
+                    "¿Resetear el cronómetro a 0?"}
+                </p>
+
+                {/* Countdown visual */}
+                <div className="mb-6">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <svg className="transform -rotate-90 w-20 h-20">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                        fill="none"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="#3b82f6"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={226.19}
+                        strokeDashoffset={
+                          226.19 * (1 - tiempoRestanteConfirmacion / 5)
+                        }
+                        strokeLinecap="round"
+                        className="transition-all duration-100"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {Math.ceil(tiempoRestanteConfirmacion)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Se cancelará automáticamente
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelarConfirmacion}
+                    className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarAccion}
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

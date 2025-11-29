@@ -9,9 +9,15 @@ function Marcador({
   golesVisitante = 0,
   faltasLocal = 0,
   faltasVisitante = 0,
-  setGolesLocal,
-  setGolesVisitante,
+  onIncrementarGolLocal,
+  onDecrementarGolLocal,
+  onIncrementarGolVisitante,
+  onDecrementarGolVisitante,
   onCronometroChange,
+  cronometroActivo = false,
+  tiempoCronometro = 0,
+  timestampInicioCronometro = null,
+  estadoPartido = "configuracion",
   flashEffect = { type: null, jugadorId: null, timestamp: null },
   jugadoresLocal = [],
   jugadoresAsignados = {},
@@ -24,6 +30,32 @@ function Marcador({
   const [flashGolVisitante, setFlashGolVisitante] = useState(false);
   const [flashFaltasLocal, setFlashFaltasLocal] = useState(false);
   const [flashFaltasVisitante, setFlashFaltasVisitante] = useState(false);
+
+  // Sincronizar cronometroActivo del padre con el estado local
+  useEffect(() => {
+    setCorriendo(cronometroActivo);
+  }, [cronometroActivo]);
+
+  // Actualizar el cronómetro visual basado en el tiempo del padre
+  useEffect(() => {
+    if (cronometroActivo && timestampInicioCronometro) {
+      // Actualizar cada 100ms para mayor precisión
+      const intervalo = setInterval(() => {
+        const tiempoTranscurrido =
+          (Date.now() - timestampInicioCronometro) / 1000;
+        const tiempoTotal = tiempoCronometro + tiempoTranscurrido;
+
+        setMinutos(Math.floor(tiempoTotal / 60));
+        setSegundos(Math.floor(tiempoTotal % 60));
+      }, 100);
+
+      return () => clearInterval(intervalo);
+    } else if (!cronometroActivo) {
+      // Cuando está pausado, mostrar el tiempo acumulado
+      setMinutos(Math.floor(tiempoCronometro / 60));
+      setSegundos(Math.floor(tiempoCronometro % 60));
+    }
+  }, [cronometroActivo, tiempoCronometro, timestampInicioCronometro]);
 
   // Efecto para detectar animaciones de gol/falta
   useEffect(() => {
@@ -46,44 +78,27 @@ function Marcador({
     }
   }, [flashEffect.timestamp]);
 
-  useEffect(() => {
-    let intervalo;
-    if (corriendo) {
-      intervalo = setInterval(() => {
-        setSegundos((prevSegundos) => {
-          if (prevSegundos === 59) {
-            setMinutos((prevMinutos) => prevMinutos + 1);
-            return 0;
-          }
-          return prevSegundos + 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(intervalo);
-  }, [corriendo]);
-
   const iniciarPausar = () => {
-    const nuevoEstado = !corriendo;
-    setCorriendo(nuevoEstado);
+    // Llamar a la función del padre que maneja la confirmación
     if (onCronometroChange) {
-      onCronometroChange(nuevoEstado);
+      onCronometroChange();
     }
   };
 
   const reiniciar = () => {
+    if (estadoPartido === "configuracion") {
+      return; // No permitir resetear en estado de configuración
+    }
+
+    const confirmar = confirm(
+      "¿Resetear el cronómetro a 0?\n\nEsto no afectará las estadísticas registradas."
+    );
+    if (!confirmar) return;
+
     setCorriendo(false);
     setMinutos(0);
     setSegundos(0);
-    if (onCronometroChange) {
-      onCronometroChange(false);
-    }
   };
-
-  const incrementarLocal = () => setGolesLocal((prev) => prev + 1);
-  const decrementarLocal = () => setGolesLocal((prev) => Math.max(0, prev - 1));
-  const incrementarVisitante = () => setGolesVisitante((prev) => prev + 1);
-  const decrementarVisitante = () =>
-    setGolesVisitante((prev) => Math.max(0, prev - 1));
 
   // Calcular minutos jugados de cada jugador
   const calcularMinutos = (jugadorId) => {
@@ -128,18 +143,20 @@ function Marcador({
             </div>
           </div>
           <div className="flex justify-center gap-2">
-              <button
-                onClick={incrementarLocal}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0"
-              >
-                +
-              </button>
-              <button
-                onClick={decrementarLocal}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0"
-              >
-                -
-              </button>
+            <button
+              onClick={onIncrementarGolLocal}
+              disabled={estadoPartido === "configuracion"}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
+            </button>
+            <button
+              onClick={onDecrementarGolLocal}
+              disabled={estadoPartido === "configuracion" || golesLocal === 0}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              -
+            </button>
           </div>
         </div>
 
@@ -247,18 +264,22 @@ function Marcador({
             </div>
           </div>
           <div className="flex justify-center gap-2">
-              <button
-                onClick={incrementarVisitante}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0"
-              >
-                +
-              </button>
-              <button
-                onClick={decrementarVisitante}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0"
-              >
-                -
-              </button>
+            <button
+              onClick={onIncrementarGolVisitante}
+              disabled={estadoPartido === "configuracion"}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
+            </button>
+            <button
+              onClick={onDecrementarGolVisitante}
+              disabled={
+                estadoPartido === "configuracion" || golesVisitante === 0
+              }
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              -
+            </button>
           </div>
         </div>
       </div>

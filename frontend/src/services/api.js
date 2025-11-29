@@ -47,6 +47,7 @@ export const partidos = {
   actualizarAsistenciaGestor: (id, jugadorId, data) =>
     api.put(`/partidos/${id}/asistencia/${jugadorId}`, data),
   finalizarPartido: (id, data) => api.post(`/partidos/${id}/finalizar`, data),
+  obtenerEstadisticas: (id) => api.get(`/partidos/${id}/estadisticas`),
 };
 
 export const motivos = {

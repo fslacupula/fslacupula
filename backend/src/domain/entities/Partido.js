@@ -23,6 +23,7 @@ export class Partido {
     resultado = null,
     observaciones = null,
     createdAt = null,
+    estado = "pendiente",
   }) {
     // Validaciones
     this.#validateFechaHora(fechaHora);
@@ -42,6 +43,7 @@ export class Partido {
     this._resultado = resultado;
     this._observaciones = observaciones;
     this._createdAt = createdAt || new Date();
+    this._estado = estado;
   }
 
   // Getters
@@ -74,6 +76,9 @@ export class Partido {
   }
   get createdAt() {
     return this._createdAt;
+  }
+  get estado() {
+    return this._estado;
   }
 
   // Validaciones privadas
@@ -150,6 +155,7 @@ export class Partido {
       resultado: this._resultado,
       observaciones: this._observaciones,
       createdAt: this._createdAt,
+      estado: this._estado,
     };
   }
 
@@ -165,6 +171,7 @@ export class Partido {
       resultado: data.resultado,
       observaciones: data.observaciones,
       createdAt: data.createdAt ? new Date(data.createdAt) : null, // Cambiado a camelCase
+      estado: data.estado || "pendiente",
     });
   }
 }

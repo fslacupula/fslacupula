@@ -85,7 +85,7 @@ export default function DetalleAsistencia() {
   };
 
   const handleCambiarEstado = async (asistencia, nuevoEstado) => {
-    if (nuevoEstado === "no_asiste") {
+    if (nuevoEstado === "ausente") {
       // Abrir modal para seleccionar motivo
       setAsistenciaEditar(asistencia);
       setShowMotivoModal(true);
@@ -228,9 +228,10 @@ export default function DetalleAsistencia() {
             ✓ Confirmar
           </button>
           <button
-            onClick={() => handleCambiarEstado(asistencia, "no_asiste")}
+            onClick={() => handleCambiarEstado(asistencia, "ausente")}
             className={`text-xs sm:text-sm px-3 py-1.5 rounded font-medium transition ${
-              asistencia.estado === "no_asiste"
+              asistencia.estado === "no_asiste" ||
+              asistencia.estado === "ausente"
                 ? "bg-red-600 text-white"
                 : "bg-red-100 text-red-700 hover:bg-red-200"
             }`}
@@ -546,7 +547,7 @@ export default function DetalleAsistencia() {
                   onClick={() =>
                     actualizarAsistencia(
                       asistenciaEditar.jugador_id,
-                      "no_asiste",
+                      "ausente",
                       motivo.id
                     )
                   }

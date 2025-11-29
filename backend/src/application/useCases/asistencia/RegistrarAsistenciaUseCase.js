@@ -54,8 +54,13 @@ export class RegistrarAsistenciaUseCase {
       throw new Error(`estado debe ser uno de: ${estadosValidos.join(", ")}`);
     }
 
-    // Validar que el jugador existe
-    const jugador = await this.jugadorRepository.findById(datos.jugadorId);
+    // Validar que el jugador existe (jugadorId puede ser el ID del jugador o el usuarioId)
+    // Intentar primero por usuarioId ya que es más común desde el frontend
+    let jugador = await this.jugadorRepository.findByUsuarioId(datos.jugadorId);
+    if (!jugador) {
+      // Si no se encuentra por usuarioId, intentar por ID de jugador
+      jugador = await this.jugadorRepository.findById(datos.jugadorId);
+    }
     if (!jugador) {
       throw new Error(`Jugador con ID ${datos.jugadorId} no encontrado`);
     }

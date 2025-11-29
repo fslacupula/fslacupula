@@ -25,4 +25,7 @@ router.put(
 // Finalizar partido con estadísticas
 router.post("/:id/finalizar", esGestor, partidoController.finalizarPartido);
 
+// Obtener estadísticas completas del partido (acta)
+router.get("/:id/estadisticas", partidoController.obtenerEstadisticasPartido);
+
 export default router;

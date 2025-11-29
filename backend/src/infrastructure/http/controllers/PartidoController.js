@@ -20,6 +20,7 @@ function formatPartidoForFrontend(partido) {
     hora,
     ubicacion: partidoPlano.lugar, // alias para el frontend
     asistencias: partido.asistencias, // Preservar asistencias explícitamente
+    estado: partidoPlano.estado || "pendiente", // Asegurar que el estado se incluye
   };
 }
 
@@ -79,11 +80,13 @@ export class PartidoController {
         );
       }
 
+      // Combinar fecha y hora en un único timestamp
+      const fechaHora = new Date(`${fecha}T${hora}:00`);
+
       const partido = await this.crearPartidoUseCase.execute({
-        fecha,
-        hora,
+        fechaHora,
         rival,
-        ubicacion,
+        lugar: ubicacion,
         tipo: tipo || "amistoso",
         esLocal: esLocal ?? true,
         resultado,
@@ -92,12 +95,11 @@ export class PartidoController {
       });
 
       // Crear asistencias pendientes para todos los jugadores
-      const jugadores = await this.listarJugadoresUseCase.execute();
-      for (const jugador of jugadores) {
+      const resultadoJugadores = await this.listarJugadoresUseCase.executeAll();
+      for (const jugador of resultadoJugadores.jugadores) {
         await this.registrarAsistenciaUseCase.execute({
-          eventoId: partido.id,
+          partidoId: partido.id,
           jugadorId: jugador.usuarioId,
-          tipoEvento: "partido",
           estado: "pendiente",
         });
       }
@@ -203,7 +205,18 @@ export class PartidoController {
       }
 
       const { id } = req.params;
-      const partido = await this.actualizarPartidoUseCase.execute(id, req.body);
+      const { fecha, hora, ubicacion, ...restoDatos } = req.body;
+
+      // Si vienen fecha y hora separados, combinarlos
+      const datos = { ...restoDatos };
+      if (fecha && hora) {
+        datos.fechaHora = new Date(`${fecha}T${hora}:00`);
+      }
+      if (ubicacion) {
+        datos.lugar = ubicacion;
+      }
+
+      const partido = await this.actualizarPartidoUseCase.execute(id, datos);
 
       res.json({ message: "Partido actualizado correctamente", partido });
     } catch (error) {
@@ -285,7 +298,7 @@ export class PartidoController {
    */
   async actualizarAsistencia(req, res, next) {
     try {
-      const { partidoId, jugadorId } = req.params;
+      const { id: partidoId, jugadorId } = req.params;
       const { estado, motivoAusenciaId, comentario } = req.body;
 
       // Solo gestores o el propio jugador pueden actualizar
@@ -293,10 +306,23 @@ export class PartidoController {
         return res.status(403).json({ error: "No autorizado" });
       }
 
-      await this.actualizarEstadoAsistenciaUseCase.execute({
-        eventoId: partidoId,
-        jugadorId,
-        tipoEvento: "partido",
+      // Primero buscar la asistencia por partidoId y jugadorId
+      const asistencias = await this.obtenerAsistenciasPorEventoUseCase.execute(
+        {
+          partidoId,
+        }
+      );
+
+      const asistencia = asistencias.find(
+        (a) => a.jugadorId === parseInt(jugadorId)
+      );
+
+      if (!asistencia) {
+        return res.status(404).json({ error: "Asistencia no encontrada" });
+      }
+
+      // Actualizar usando el ID de la asistencia
+      await this.actualizarEstadoAsistenciaUseCase.execute(asistencia.id, {
         estado,
         motivoAusenciaId,
         comentario,
@@ -353,9 +379,11 @@ export class PartidoController {
       const resultEstadisticas = await client.query(
         `INSERT INTO estadisticas_partidos (
           partido_id, goles_local, goles_visitante, 
-          faltas_local, faltas_visitante, dorsales_visitantes,
-          duracion_minutos, fecha_registro
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+          faltas_local, faltas_visitante, 
+          faltas_local_primera, faltas_local_segunda,
+          faltas_visitante_primera, faltas_visitante_segunda,
+          dorsales_visitantes, duracion_minutos, fecha_registro
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
         RETURNING id`,
         [
           id,
@@ -363,6 +391,10 @@ export class PartidoController {
           estadisticas.golesVisitante || 0,
           estadisticas.faltasLocal || 0,
           estadisticas.faltasVisitante || 0,
+          estadisticas.faltasLocalPrimera || 0,
+          estadisticas.faltasLocalSegunda || 0,
+          estadisticas.faltasVisitantePrimera || 0,
+          estadisticas.faltasVisitanteSegunda || 0,
           JSON.stringify(estadisticas.dorsalesVisitantes || []),
           estadisticas.duracionMinutos || 90,
         ]
@@ -373,15 +405,21 @@ export class PartidoController {
       // 3. Insertar estadísticas de jugadores
       if (jugadores && jugadores.length > 0) {
         for (const jugador of jugadores) {
+          // Convertir jugadorId a null si es un string (visitantes)
+          const jugadorIdNumerico =
+            typeof jugador.jugadorId === "number" ? jugador.jugadorId : null;
+
           await client.query(
             `INSERT INTO estadisticas_jugadores_partido (
-              estadisticas_partido_id, jugador_id, posicion,
+              partido_id, estadisticas_partido_id, jugador_id, equipo, posicion,
               minutos_jugados, goles, asistencias, tarjetas_amarillas,
               tarjetas_rojas, paradas, goles_recibidos
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
+              id,
               estadisticasId,
-              jugador.jugadorId,
+              jugadorIdNumerico,
+              "local", // Todos son del equipo local
               jugador.posicion || null,
               jugador.minutosJugados || 0,
               jugador.goles || 0,
@@ -400,10 +438,11 @@ export class PartidoController {
         for (const miembro of staff) {
           await client.query(
             `INSERT INTO staff_partido (
-              estadisticas_partido_id, nombre, tipo_staff,
+              partido_id, estadisticas_partido_id, nombre, tipo_staff,
               tarjetas_amarillas, tarjetas_rojas
-            ) VALUES ($1, $2, $3, $4, $5)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
+              id,
               estadisticasId,
               miembro.nombre,
               miembro.tipo || "entrenador",
@@ -417,21 +456,27 @@ export class PartidoController {
       // 5. Insertar historial de acciones
       if (historialAcciones && historialAcciones.length > 0) {
         for (const accion of historialAcciones) {
+          // Convertir jugadorId a null si es un string (visitantes)
+          const jugadorIdNumerico =
+            typeof accion.jugadorId === "number" ? accion.jugadorId : null;
+
           await client.query(
             `INSERT INTO historial_acciones_partido (
-              estadisticas_partido_id, minuto, accion, equipo,
-              jugador_id, jugador_nombre, dorsal, detalles, orden_accion
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              partido_id, estadisticas_partido_id, timestamp, accion, equipo,
+              jugador_id, jugador_nombre, dorsal, detalles, orden_accion, minuto_partido
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
+              id,
               estadisticasId,
-              accion.minuto,
+              accion.timestamp || new Date().toISOString(), // Usar timestamp del frontend
               accion.accion,
               accion.equipo,
-              accion.jugadorId || null,
+              jugadorIdNumerico,
               accion.jugadorNombre || null,
               accion.dorsal || null,
               accion.detalles || null,
               accion.ordenAccion,
+              accion.minuto_partido || 0, // Minuto del partido basado en el cronómetro
             ]
           );
         }
@@ -440,20 +485,29 @@ export class PartidoController {
       // 6. Insertar tiempos de juego
       if (tiemposJuego && tiemposJuego.length > 0) {
         for (const tiempo of tiemposJuego) {
-          await client.query(
-            `INSERT INTO tiempos_juego_partido (
-              estadisticas_partido_id, jugador_id, 
-              minuto_entrada, minuto_salida, posicion, duracion_minutos
-            ) VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              estadisticasId,
-              tiempo.jugadorId,
-              tiempo.minutoEntrada || 0,
-              tiempo.minutoSalida || null,
-              tiempo.posicion || null,
-              tiempo.duracionMinutos || 0,
-            ]
-          );
+          // Convertir jugadorId a null si es un string (visitantes)
+          const jugadorIdNumerico =
+            typeof tiempo.jugadorId === "number" ? tiempo.jugadorId : null;
+
+          // Solo insertar si jugadorId es numérico (excluir visitantes)
+          if (jugadorIdNumerico) {
+            await client.query(
+              `INSERT INTO tiempos_juego_partido (
+                partido_id, estadisticas_partido_id, jugador_id, 
+                timestamp_entrada, minuto_entrada, minuto_salida, posicion, duracion_segundos
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                id,
+                estadisticasId,
+                jugadorIdNumerico,
+                new Date().toISOString(), // Timestamp de entrada (aproximado)
+                tiempo.minutoEntrada || 0,
+                tiempo.minutoSalida || null,
+                tiempo.posicion || null,
+                tiempo.duracionSegundos || 0,
+              ]
+            );
+          }
         }
       }
 
@@ -474,6 +528,91 @@ export class PartidoController {
       // Rollback en caso de error
       await client.query("ROLLBACK");
       console.error("❌ Error al finalizar partido:", error);
+      next(error);
+    } finally {
+      client.release();
+    }
+  }
+
+  async obtenerEstadisticasPartido(req, res, next) {
+    const client = await this.pool.connect();
+
+    try {
+      const { id } = req.params;
+
+      console.log("📊 Obteniendo estadísticas del partido:", id);
+
+      // 1. Obtener estadísticas generales del partido
+      const resultEstadisticas = await client.query(
+        `SELECT * FROM estadisticas_partidos WHERE partido_id = $1`,
+        [id]
+      );
+
+      if (resultEstadisticas.rows.length === 0) {
+        return res.status(404).json({
+          error: "No se encontraron estadísticas para este partido",
+        });
+      }
+
+      const estadisticasGenerales = resultEstadisticas.rows[0];
+
+      // 2. Obtener estadísticas de jugadores
+      const resultJugadores = await client.query(
+        `SELECT 
+          ejp.*,
+          u.nombre as jugador_nombre_completo,
+          j.numero_dorsal as dorsal,
+          j.alias
+         FROM estadisticas_jugadores_partido ejp
+         LEFT JOIN usuarios u ON ejp.jugador_id = u.id
+         LEFT JOIN jugadores j ON ejp.jugador_id = j.usuario_id
+         WHERE ejp.partido_id = $1
+         ORDER BY ejp.minutos_jugados DESC`,
+        [id]
+      );
+
+      // 3. Obtener historial de acciones
+      const resultHistorial = await client.query(
+        `SELECT * FROM historial_acciones_partido 
+         WHERE partido_id = $1 
+         ORDER BY timestamp ASC`,
+        [id]
+      );
+
+      // 4. Obtener tiempos de juego
+      const resultTiempos = await client.query(
+        `SELECT 
+          tjp.*,
+          u.nombre as jugador_nombre
+         FROM tiempos_juego_partido tjp
+         LEFT JOIN usuarios u ON tjp.jugador_id = u.id
+         WHERE tjp.partido_id = $1
+         ORDER BY tjp.timestamp_entrada ASC`,
+        [id]
+      );
+
+      // 5. Obtener información del partido
+      const resultPartido = await client.query(
+        `SELECT * FROM partidos WHERE id = $1`,
+        [id]
+      );
+
+      const acta = {
+        partido: resultPartido.rows[0],
+        estadisticas: estadisticasGenerales,
+        jugadores: resultJugadores.rows,
+        historial: resultHistorial.rows,
+        tiemposJuego: resultTiempos.rows,
+      };
+
+      console.log("✅ Estadísticas obtenidas:", {
+        totalJugadores: acta.jugadores.length,
+        totalAcciones: acta.historial.length,
+      });
+
+      res.json(acta);
+    } catch (error) {
+      console.error("❌ Error al obtener estadísticas:", error);
       next(error);
     } finally {
       client.release();
@@ -504,5 +643,7 @@ export function createPartidoController(container) {
       controller.actualizarAsistencia(req, res, next),
     finalizarPartido: (req, res, next) =>
       controller.finalizarPartido(req, res, next),
+    obtenerEstadisticasPartido: (req, res, next) =>
+      controller.obtenerEstadisticasPartido(req, res, next),
   };
 }

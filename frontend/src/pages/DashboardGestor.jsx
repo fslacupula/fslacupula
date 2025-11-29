@@ -435,6 +435,7 @@ export default function DashboardGestor() {
                         console.log("Evento completo:", evento);
                         console.log("ID del evento:", evento.id);
                         console.log("Tipo del evento:", evento.tipoEvento);
+                        console.log("Estado del evento:", evento.estado);
                         navigate(
                           `/asistencia/${evento.tipoEvento}/${evento.id}`
                         );
@@ -443,6 +444,19 @@ export default function DashboardGestor() {
                     >
                       Ver Asistencia
                     </button>
+                    {!esEntrenamiento && evento.estado === "finalizado" && (
+                      <button
+                        onClick={() => navigate(`/acta-partido/${evento.id}`)}
+                        className="bg-green-500 text-white px-3 py-2 rounded text-sm hover:bg-green-600 whitespace-nowrap"
+                      >
+                        📋 Ver Acta
+                      </button>
+                    )}
+                    {!esEntrenamiento && (
+                      <div className="text-xs text-gray-500">
+                        Estado: {evento.estado || "sin estado"}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
                       <button
                         onClick={() => abrirModal(evento)}
