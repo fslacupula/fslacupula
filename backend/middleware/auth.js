@@ -8,13 +8,18 @@ export const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: "Token no proporcionado" });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, { ignoreExpiration: true }, (err, user) => {
-    if (err && err.name !== 'TokenExpiredError') {
-      return res.status(403).json({ error: "Token inválido" });
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET,
+    { ignoreExpiration: true },
+    (err, user) => {
+      if (err && err.name !== "TokenExpiredError") {
+        return res.status(403).json({ error: "Token inválido" });
+      }
+      req.user = user;
+      next();
     }
-    req.user = user;
-    next();
-  });
+  );
 };
 
 export const esGestor = (req, res, next) => {

@@ -82,6 +82,38 @@ export default function ActaPartido() {
   const { partido, estadisticas, jugadores, historial, tiemposJuego, staff } =
     acta;
 
+  // Contar tarjetas del historial por equipo
+  const contarTarjetasHistorial = (equipo, tipoTarjeta) => {
+    return historial.filter(
+      (accion) => accion.equipo === equipo && accion.accion === tipoTarjeta
+    ).length;
+  };
+
+  // Totales de tarjetas incluyendo historial
+  const tarjetasAmarillasLocal =
+    jugadores
+      .filter((j) => j.equipo === "local")
+      .reduce((sum, j) => sum + (j.tarjetas_amarillas || 0), 0) +
+    contarTarjetasHistorial("local", "amarilla");
+
+  const tarjetasRojasLocal =
+    jugadores
+      .filter((j) => j.equipo === "local")
+      .reduce((sum, j) => sum + (j.tarjetas_rojas || 0), 0) +
+    contarTarjetasHistorial("local", "roja");
+
+  const tarjetasAmarillasVisitante =
+    jugadores
+      .filter((j) => j.equipo === "visitante")
+      .reduce((sum, j) => sum + (j.tarjetas_amarillas || 0), 0) +
+    contarTarjetasHistorial("visitante", "amarilla");
+
+  const tarjetasRojasVisitante =
+    jugadores
+      .filter((j) => j.equipo === "visitante")
+      .reduce((sum, j) => sum + (j.tarjetas_rojas || 0), 0) +
+    contarTarjetasHistorial("visitante", "roja");
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -264,19 +296,10 @@ export default function ActaPartido() {
                   <p className="text-sm mb-1">Tarjetas</p>
                   <div className="flex justify-center gap-3 text-xl font-bold">
                     <span className="text-yellow-300">
-                      🟨{" "}
-                      {jugadores
-                        .filter((j) => j.equipo === "local")
-                        .reduce(
-                          (sum, j) => sum + (j.tarjetas_amarillas || 0),
-                          0
-                        )}
+                      🟨 {tarjetasAmarillasLocal}
                     </span>
                     <span className="text-red-300">
-                      🟥{" "}
-                      {jugadores
-                        .filter((j) => j.equipo === "local")
-                        .reduce((sum, j) => sum + (j.tarjetas_rojas || 0), 0)}
+                      🟥 {tarjetasRojasLocal}
                     </span>
                   </div>
                 </div>
@@ -284,18 +307,10 @@ export default function ActaPartido() {
                   <p className="text-sm mb-1">Total Tarjetas</p>
                   <div className="flex justify-center gap-3 text-xl font-bold">
                     <span className="text-yellow-300">
-                      🟨{" "}
-                      {jugadores.reduce(
-                        (sum, j) => sum + (j.tarjetas_amarillas || 0),
-                        0
-                      )}
+                      🟨 {tarjetasAmarillasLocal + tarjetasAmarillasVisitante}
                     </span>
                     <span className="text-red-300">
-                      🟥{" "}
-                      {jugadores.reduce(
-                        (sum, j) => sum + (j.tarjetas_rojas || 0),
-                        0
-                      )}
+                      🟥 {tarjetasRojasLocal + tarjetasRojasVisitante}
                     </span>
                   </div>
                 </div>
@@ -303,19 +318,10 @@ export default function ActaPartido() {
                   <p className="text-sm mb-1">Tarjetas</p>
                   <div className="flex justify-center gap-3 text-xl font-bold">
                     <span className="text-yellow-300">
-                      🟨{" "}
-                      {jugadores
-                        .filter((j) => j.equipo === "visitante")
-                        .reduce(
-                          (sum, j) => sum + (j.tarjetas_amarillas || 0),
-                          0
-                        )}
+                      🟨 {tarjetasAmarillasVisitante}
                     </span>
                     <span className="text-red-300">
-                      🟥{" "}
-                      {jugadores
-                        .filter((j) => j.equipo === "visitante")
-                        .reduce((sum, j) => sum + (j.tarjetas_rojas || 0), 0)}
+                      🟥 {tarjetasRojasVisitante}
                     </span>
                   </div>
                 </div>
