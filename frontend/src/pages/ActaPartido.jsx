@@ -254,7 +254,7 @@ export default function ActaPartido() {
 
             {/* Faltas y Tarjetas */}
             <div className="mt-6 pt-4 border-t border-blue-400">
-              <div className="grid grid-cols-5 gap-4 text-center">
+              <div className="grid grid-cols-7 gap-4 text-center items-end">
                 <div>
                   <p className="text-sm mb-1">Faltas 1ª Parte</p>
                   <p className="text-2xl font-bold">
@@ -267,12 +267,33 @@ export default function ActaPartido() {
                     {estadisticas.faltas_local_segunda || 0}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm mb-1">Tarjetas</p>
+                  <div className="flex justify-center gap-2 text-xl font-bold">
+                    <span className="text-yellow-300">
+                      🟨 {tarjetasAmarillasLocal}
+                    </span>
+                    <span className="text-red-300">
+                      🟥 {tarjetasRojasLocal}
+                    </span>
+                  </div>
+                </div>
                 <div className="border-l border-r border-blue-400">
                   <p className="text-sm mb-1">Total Faltas</p>
                   <p className="text-2xl font-bold">
-                    {estadisticas.faltas_local} -{" "}
-                    {estadisticas.faltas_visitante}
+                    {estadisticas.faltas_local} - {estadisticas.faltas_visitante}
                   </p>
+                </div>
+                <div>
+                  <p className="text-sm mb-1">Tarjetas</p>
+                  <div className="flex justify-center gap-2 text-xl font-bold">
+                    <span className="text-yellow-300">
+                      🟨 {tarjetasAmarillasVisitante}
+                    </span>
+                    <span className="text-red-300">
+                      🟥 {tarjetasRojasVisitante}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm mb-1">Faltas 1ª Parte</p>
@@ -285,31 +306,6 @@ export default function ActaPartido() {
                   <p className="text-2xl font-bold">
                     {estadisticas.faltas_visitante_segunda || 0}
                   </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-5 gap-4 text-center mt-4">
-                <div className="col-span-2">
-                  <p className="text-sm mb-1">Tarjetas</p>
-                  <div className="flex justify-center gap-3 text-xl font-bold">
-                    <span className="text-yellow-300">
-                      🟨 {tarjetasAmarillasLocal}
-                    </span>
-                    <span className="text-red-300">
-                      🟥 {tarjetasRojasLocal}
-                    </span>
-                  </div>
-                </div>
-                <div className="border-l border-r border-blue-400"></div>
-                <div className="col-span-2">
-                  <p className="text-sm mb-1">Tarjetas</p>
-                  <div className="flex justify-center gap-3 text-xl font-bold">
-                    <span className="text-yellow-300">
-                      🟨 {tarjetasAmarillasVisitante}
-                    </span>
-                    <span className="text-red-300">
-                      🟥 {tarjetasRojasVisitante}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
