@@ -252,9 +252,9 @@ export default function ActaPartido() {
               </div>
             </div>
 
-            {/* Faltas */}
+            {/* Faltas y Tarjetas */}
             <div className="mt-6 pt-4 border-t border-blue-400">
-              <div className="flex justify-around text-center">
+              <div className="grid grid-cols-5 gap-4 text-center">
                 <div>
                   <p className="text-sm mb-1">Faltas 1ª Parte</p>
                   <p className="text-2xl font-bold">
@@ -267,7 +267,7 @@ export default function ActaPartido() {
                     {estadisticas.faltas_local_segunda || 0}
                   </p>
                 </div>
-                <div className="border-l border-r border-blue-400 px-8">
+                <div className="border-l border-r border-blue-400">
                   <p className="text-sm mb-1">Total Faltas</p>
                   <p className="text-2xl font-bold">
                     {estadisticas.faltas_local} -{" "}
@@ -287,12 +287,8 @@ export default function ActaPartido() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Tarjetas */}
-            <div className="mt-4 pt-4 border-t border-blue-400">
-              <div className="flex justify-around text-center">
-                <div>
+              <div className="grid grid-cols-5 gap-4 text-center mt-4">
+                <div className="col-span-2">
                   <p className="text-sm mb-1">Tarjetas</p>
                   <div className="flex justify-center gap-3 text-xl font-bold">
                     <span className="text-yellow-300">
@@ -303,18 +299,8 @@ export default function ActaPartido() {
                     </span>
                   </div>
                 </div>
-                <div className="border-l border-r border-blue-400 px-8">
-                  <p className="text-sm mb-1">Total Tarjetas</p>
-                  <div className="flex justify-center gap-3 text-xl font-bold">
-                    <span className="text-yellow-300">
-                      🟨 {tarjetasAmarillasLocal + tarjetasAmarillasVisitante}
-                    </span>
-                    <span className="text-red-300">
-                      🟥 {tarjetasRojasLocal + tarjetasRojasVisitante}
-                    </span>
-                  </div>
-                </div>
-                <div>
+                <div className="border-l border-r border-blue-400"></div>
+                <div className="col-span-2">
                   <p className="text-sm mb-1">Tarjetas</p>
                   <div className="flex justify-center gap-3 text-xl font-bold">
                     <span className="text-yellow-300">
