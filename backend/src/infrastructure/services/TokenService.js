@@ -11,7 +11,7 @@ export class TokenService {
 
     // Opciones por defecto
     this.defaultOptions = {
-      expiresIn: options.expiresIn || "24h",
+      expiresIn: options.expiresIn || "30d",
       issuer: options.issuer || "futbol-club-app",
       audience: options.audience || "futbol-club-users",
     };
