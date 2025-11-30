@@ -369,13 +369,28 @@ export class PartidoController {
       // Iniciar transacción
       await client.query("BEGIN");
 
-      // 1. Actualizar estado del partido a "finalizado"
+      // 1. Verificar si el partido ya tiene estadísticas
+      const checkStats = await client.query(
+        "SELECT id FROM estadisticas_partidos WHERE partido_id = $1",
+        [id]
+      );
+
+      if (checkStats.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error:
+            "Este partido ya ha sido finalizado. No se pueden guardar estadísticas duplicadas.",
+          estadisticasId: checkStats.rows[0].id,
+        });
+      }
+
+      // 2. Actualizar estado del partido a "finalizado"
       await client.query("UPDATE partidos SET estado = $1 WHERE id = $2", [
         "finalizado",
         id,
       ]);
 
-      // 2. Insertar estadísticas del partido
+      // 3. Insertar estadísticas del partido
       const resultEstadisticas = await client.query(
         `INSERT INTO estadisticas_partidos (
           partido_id, goles_local, goles_visitante, 
@@ -402,7 +417,7 @@ export class PartidoController {
 
       const estadisticasId = resultEstadisticas.rows[0].id;
 
-      // 3. Insertar estadísticas de jugadores
+      // 4. Insertar estadísticas de jugadores
       if (jugadores && jugadores.length > 0) {
         for (const jugador of jugadores) {
           // Convertir jugadorId a null si es un string (visitantes)
@@ -433,7 +448,7 @@ export class PartidoController {
         }
       }
 
-      // 4. Insertar staff (si hay tarjetas a staff)
+      // 5. Insertar staff (si hay tarjetas a staff)
       if (staff && staff.length > 0) {
         for (const miembro of staff) {
           await client.query(
@@ -453,7 +468,7 @@ export class PartidoController {
         }
       }
 
-      // 5. Insertar historial de acciones
+      // 6. Insertar historial de acciones
       if (historialAcciones && historialAcciones.length > 0) {
         for (const accion of historialAcciones) {
           // Convertir jugadorId a null si es un string (visitantes)
@@ -482,7 +497,7 @@ export class PartidoController {
         }
       }
 
-      // 6. Insertar tiempos de juego
+      // 7. Insertar tiempos de juego
       if (tiemposJuego && tiemposJuego.length > 0) {
         for (const tiempo of tiemposJuego) {
           // Convertir jugadorId a null si es un string (visitantes)
