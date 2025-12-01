@@ -64,31 +64,27 @@ export class PartidoController {
   async crearPartido(req, res, next) {
     try {
       const {
-        fecha,
-        hora,
+        fecha_hora,
         rival,
         ubicacion,
         tipo,
-        esLocal,
+        es_local,
         resultado,
         observaciones,
       } = req.body;
 
-      if (!fecha || !hora || !rival || !ubicacion) {
+      if (!fecha_hora || !rival || !ubicacion) {
         throw new ValidationError(
-          "Fecha, hora, rival y ubicación son requeridos"
+          "Fecha/hora, rival y ubicación son requeridos"
         );
       }
 
-      // Combinar fecha y hora en un único timestamp
-      const fechaHora = new Date(`${fecha}T${hora}:00`);
-
       const partido = await this.crearPartidoUseCase.execute({
-        fechaHora,
+        fechaHora: fecha_hora,
         rival,
         lugar: ubicacion,
         tipo: tipo || "amistoso",
-        esLocal: esLocal ?? true,
+        esLocal: es_local ?? true,
         resultado,
         observaciones,
         creadoPor: req.user.id,
@@ -205,15 +201,27 @@ export class PartidoController {
       }
 
       const { id } = req.params;
-      const { fecha, hora, ubicacion, ...restoDatos } = req.body;
+      const { fecha, hora, fecha_hora, ubicacion, es_local, ...restoDatos } =
+        req.body;
 
-      // Si vienen fecha y hora separados, combinarlos
+      // Mapear campos al formato esperado por el use case
       const datos = { ...restoDatos };
-      if (fecha && hora) {
+
+      // Si viene fecha_hora directamente (nuevo formato)
+      if (fecha_hora) {
+        datos.fechaHora = fecha_hora;
+      }
+      // Si vienen fecha y hora separados (formato antiguo)
+      else if (fecha && hora) {
         datos.fechaHora = new Date(`${fecha}T${hora}:00`);
       }
-      if (ubicacion) {
+
+      if (ubicacion !== undefined) {
         datos.lugar = ubicacion;
+      }
+
+      if (es_local !== undefined) {
+        datos.esLocal = es_local;
       }
 
       const partido = await this.actualizarPartidoUseCase.execute(id, datos);

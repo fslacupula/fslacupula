@@ -45,6 +45,42 @@ export class EntrenamientoRepositoryPg {
   }
 
   /**
+   * Obtiene un entrenamiento por ID con datos completos de jugadores en asistencias
+   */
+  async findByIdWithPlayerData(id) {
+    const query = "SELECT * FROM entrenamientos WHERE id = $1";
+    const result = await this.pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const entrenamiento = this._mapToEntity(result.rows[0]);
+
+    // Cargar asistencias con datos completos de jugadores
+    const asistenciasQuery = `
+      SELECT ae.*, u.nombre as jugador_nombre, u.email as jugador_email,
+             j.numero_dorsal as dorsal, j.posicion_id, p.nombre as posicion, 
+             p.abreviatura, p.color, j.alias, ma.motivo as motivo_nombre
+      FROM asistencias_entrenamientos ae
+      JOIN usuarios u ON ae.jugador_id = u.id
+      LEFT JOIN jugadores j ON u.id = j.usuario_id
+      LEFT JOIN posiciones p ON j.posicion_id = p.id
+      LEFT JOIN motivos_ausencia ma ON ae.motivo_ausencia_id = ma.id
+      WHERE ae.entrenamiento_id = $1
+      ORDER BY u.nombre
+    `;
+
+    const asistenciasResult = await this.pool.query(asistenciasQuery, [id]);
+
+    // Convertir a objeto y agregar asistencias
+    const entrenamientoObj = entrenamiento.toObject();
+    entrenamientoObj.asistencias = asistenciasResult.rows;
+
+    return entrenamientoObj;
+  }
+
+  /**
    * Obtiene todos los entrenamientos
    */
   async findAll(filters = {}) {

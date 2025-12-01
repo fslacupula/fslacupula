@@ -9,7 +9,8 @@ export class ObtenerEntrenamientoPorIdUseCase {
   }
 
   async execute(id) {
-    const entrenamiento = await this.entrenamientoRepository.findById(id);
+    const entrenamiento =
+      await this.entrenamientoRepository.findByIdWithPlayerData(id);
     return entrenamiento;
   }
 }

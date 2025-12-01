@@ -81,27 +81,22 @@ export default function DashboardGestor() {
 
   const cargarDatos = async () => {
     try {
-      console.log("🔄 [cargarDatos] activeTab:", activeTab);
       if (activeTab === "todos") {
         const [resEnt, resPart] = await Promise.all([
           entrenamientos.listar(),
           partidos.listar(),
         ]);
-        console.log("📊 [cargarDatos] Entrenamientos:", resEnt.data);
-        console.log("📊 [cargarDatos] Partidos:", resPart.data);
         setListaEntrenamientos(resEnt.data.entrenamientos || []);
         setListaPartidos(resPart.data.partidos || []);
       } else if (activeTab === "entrenamientos") {
         const res = await entrenamientos.listar();
-        console.log("📊 [cargarDatos] Entrenamientos:", res.data);
         setListaEntrenamientos(res.data.entrenamientos || []);
       } else {
         const res = await partidos.listar();
-        console.log("📊 [cargarDatos] Partidos:", res.data);
         setListaPartidos(res.data.partidos || []);
       }
     } catch (error) {
-      console.error("❌ [cargarDatos] Error:", error);
+      console.error("Error al cargar datos:", error);
     }
   };
 
@@ -488,10 +483,11 @@ export default function DashboardGestor() {
     const getEstadisticasEvento = (evento) => {
       if (!evento.asistencias)
         return { confirmados: 0, noAsisten: 0, pendientes: 0 };
+
       return {
         confirmados: evento.asistencias.filter((a) => a.estado === "confirmado")
           .length,
-        noAsisten: evento.asistencias.filter((a) => a.estado === "no_asiste")
+        noAsisten: evento.asistencias.filter((a) => a.estado === "ausente")
           .length,
         pendientes: evento.asistencias.filter((a) => a.estado === "pendiente")
           .length,

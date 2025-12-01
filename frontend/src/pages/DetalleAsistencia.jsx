@@ -42,12 +42,6 @@ export default function DetalleAsistencia() {
           ? res.data.entrenamiento
           : res.data.partido;
 
-      console.log("📋 Detalle del evento cargado:", data);
-      console.log("👥 Asistencias recibidas:", data.asistencias);
-      if (data.asistencias && data.asistencias.length > 0) {
-        console.log("🔍 Primera asistencia (estructura):", data.asistencias[0]);
-      }
-
       setEvento(data);
     } catch (error) {
       console.error("Error al cargar detalle:", error);
@@ -142,7 +136,7 @@ export default function DetalleAsistencia() {
   const confirmados =
     evento?.asistencias?.filter((a) => a.estado === "confirmado").length || 0;
   const noAsisten =
-    evento?.asistencias?.filter((a) => a.estado === "no_asiste").length || 0;
+    evento?.asistencias?.filter((a) => a.estado === "ausente").length || 0;
   const pendientes =
     evento?.asistencias?.filter((a) => a.estado === "pendiente").length || 0;
 

@@ -56,28 +56,26 @@ export class EntrenamientoController {
 
   async crearEntrenamiento(req, res, next) {
     try {
-      const { fecha, hora, lugar, descripcion, duracionMinutos } = req.body;
+      const { fecha_hora, ubicacion, descripcion, duracionMinutos } = req.body;
 
-      if (!fecha || !hora || !lugar) {
-        throw new ValidationError("Fecha, hora y lugar son requeridos");
+      if (!fecha_hora || !ubicacion) {
+        throw new ValidationError("Fecha/hora y ubicación son requeridos");
       }
 
       const entrenamiento = await this.crearEntrenamientoUseCase.execute({
-        fecha,
-        hora,
-        lugar,
+        fechaHora: fecha_hora,
+        lugar: ubicacion,
         descripcion,
         duracionMinutos: duracionMinutos || 90,
         creadoPor: req.user.id,
       });
 
       // Crear asistencias pendientes
-      const jugadores = await this.listarJugadoresUseCase.execute();
-      for (const jugador of jugadores) {
+      const resultadoJugadores = await this.listarJugadoresUseCase.executeAll();
+      for (const jugador of resultadoJugadores.jugadores) {
         await this.registrarAsistenciaUseCase.execute({
-          eventoId: entrenamiento.id,
+          entrenamientoId: entrenamiento.id,
           jugadorId: jugador.usuarioId,
-          tipoEvento: "entrenamiento",
           estado: "pendiente",
         });
       }
@@ -159,12 +157,8 @@ export class EntrenamientoController {
         return res.status(404).json({ error: "Entrenamiento no encontrado" });
       }
 
-      const asistencias = await this.obtenerAsistenciasPorEventoUseCase.execute(
-        {
-          entrenamientoId: id,
-        }
-      );
-      entrenamiento.asistencias = asistencias;
+      // Las asistencias ya vienen con datos completos del jugador desde findByIdWithPlayerData
+      // No necesitamos sobrescribirlas
 
       // Formatear para el frontend
       const entrenamientoFormateado =
@@ -185,9 +179,20 @@ export class EntrenamientoController {
       }
 
       const { id } = req.params;
+      const { fecha_hora, ubicacion, descripcion, duracionMinutos } = req.body;
+
+      // Mapear los campos del frontend al formato esperado por el use case
+      const datosActualizacion = {};
+      if (fecha_hora !== undefined) datosActualizacion.fechaHora = fecha_hora;
+      if (ubicacion !== undefined) datosActualizacion.lugar = ubicacion;
+      if (descripcion !== undefined)
+        datosActualizacion.descripcion = descripcion;
+      if (duracionMinutos !== undefined)
+        datosActualizacion.duracionMinutos = duracionMinutos;
+
       const entrenamiento = await this.actualizarEntrenamientoUseCase.execute(
         id,
-        req.body
+        datosActualizacion
       );
 
       res.json({
@@ -222,9 +227,8 @@ export class EntrenamientoController {
       const { estado, motivoAusenciaId, comentario } = req.body;
 
       await this.registrarAsistenciaUseCase.execute({
-        eventoId: id,
+        entrenamientoId: id,
         jugadorId: req.user.id,
-        tipoEvento: "entrenamiento",
         estado,
         motivoAusenciaId,
         comentario,
@@ -238,17 +242,30 @@ export class EntrenamientoController {
 
   async actualizarAsistencia(req, res, next) {
     try {
-      const { entrenamientoId, jugadorId } = req.params;
+      const { id: entrenamientoId, jugadorId } = req.params;
       const { estado, motivoAusenciaId, comentario } = req.body;
 
       if (req.user.rol !== "gestor" && req.user.id !== parseInt(jugadorId)) {
         return res.status(403).json({ error: "No autorizado" });
       }
 
-      await this.actualizarEstadoAsistenciaUseCase.execute({
-        eventoId: entrenamientoId,
-        jugadorId,
-        tipoEvento: "entrenamiento",
+      // Primero buscar la asistencia por entrenamientoId y jugadorId
+      const asistencias = await this.obtenerAsistenciasPorEventoUseCase.execute(
+        {
+          entrenamientoId: parseInt(entrenamientoId),
+        }
+      );
+
+      const asistencia = asistencias.find(
+        (a) => a.jugadorId === parseInt(jugadorId)
+      );
+
+      if (!asistencia) {
+        return res.status(404).json({ error: "Asistencia no encontrada" });
+      }
+
+      // Actualizar usando el ID de la asistencia
+      await this.actualizarEstadoAsistenciaUseCase.execute(asistencia.id, {
         estado,
         motivoAusenciaId,
         comentario,
