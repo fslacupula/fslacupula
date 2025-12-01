@@ -29,10 +29,10 @@ async function runMigration() {
       "migrations",
       "20241201000001_add_periodo_to_historial_acciones.js"
     );
-    
+
     // Importar y ejecutar la migración (usar pathToFileURL para Windows)
     const migration = await import(pathToFileURL(migrationPath).href);
-    
+
     console.log("🔄 Ejecutando migración...");
     await migration.up(client);
 
