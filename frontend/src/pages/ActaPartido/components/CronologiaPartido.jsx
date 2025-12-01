@@ -17,6 +17,11 @@ export default function CronologiaPartido({ historial, estadisticas }) {
             <div className="space-y-1">
               {[...historial]
                 .filter((accion) => {
+                  // Filtrar por período 1 (o si no tiene período, por minuto)
+                  if (accion.periodo !== undefined) {
+                    return accion.periodo === 1;
+                  }
+                  // Fallback para acciones sin período: usar minuto
                   const minuto = accion.minuto_partido || accion.minuto || 0;
                   return minuto <= estadisticas.duracion_minutos / 2;
                 })
@@ -100,6 +105,11 @@ export default function CronologiaPartido({ historial, estadisticas }) {
             <div className="space-y-1">
               {[...historial]
                 .filter((accion) => {
+                  // Filtrar por período 2 (o si no tiene período, por minuto)
+                  if (accion.periodo !== undefined) {
+                    return accion.periodo === 2;
+                  }
+                  // Fallback para acciones sin período: usar minuto
                   const minuto = accion.minuto_partido || accion.minuto || 0;
                   return minuto > estadisticas.duracion_minutos / 2;
                 })

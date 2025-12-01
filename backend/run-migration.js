@@ -2,6 +2,7 @@ import pg from "pg";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { pathToFileURL } from "url";
 
 const { Pool } = pg;
 
@@ -26,12 +27,14 @@ async function runMigration() {
       __dirname,
       "database",
       "migrations",
-      "006_add_posicion_to_jugadores_partido.sql"
+      "20241201000001_add_periodo_to_historial_acciones.js"
     );
-    const sql = fs.readFileSync(migrationPath, "utf8");
-
+    
+    // Importar y ejecutar la migración (usar pathToFileURL para Windows)
+    const migration = await import(pathToFileURL(migrationPath).href);
+    
     console.log("🔄 Ejecutando migración...");
-    await client.query(sql);
+    await migration.up(client);
 
     console.log("✅ Migración ejecutada exitosamente");
   } catch (error) {

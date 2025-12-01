@@ -478,8 +478,8 @@ export class PartidoController {
           await client.query(
             `INSERT INTO historial_acciones_partido (
               partido_id, estadisticas_partido_id, timestamp, accion, equipo,
-              jugador_id, jugador_nombre, dorsal, detalles, orden_accion, minuto_partido
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+              jugador_id, jugador_nombre, dorsal, detalles, orden_accion, minuto_partido, periodo
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
               id,
               estadisticasId,
@@ -492,6 +492,7 @@ export class PartidoController {
               accion.detalles || null,
               accion.ordenAccion,
               accion.minuto_partido || 0, // Minuto del partido basado en el cronómetro
+              accion.periodo || 1, // Período del partido (1 o 2)
             ]
           );
         }

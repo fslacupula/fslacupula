@@ -2014,10 +2014,11 @@ function ConfigurarPartido() {
         },
       ]; // Enviar todo el staff, con o sin tarjetas
 
-      // 4. Preparar historial de acciones con orden
+      // 4. Preparar historial de acciones con orden y período
       const historialConOrden = historialAcciones.map((accion, index) => ({
         ...accion,
         ordenAccion: index + 1,
+        periodo: accion.periodo || 1, // Asegurar que siempre tenga período
       }));
 
       // 5. Preparar tiempos de juego
