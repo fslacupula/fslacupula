@@ -211,9 +211,10 @@ export default function DashboardGestor() {
       const tipoAUsar = activeTab === "todos" ? tipoEvento : activeTab;
 
       if (tipoAUsar === "entrenamientos") {
+        // Combinar fecha y hora en formato ISO
+        const fechaHora = `${formData.fecha}T${formData.hora}:00`;
         const data = {
-          fecha: formData.fecha,
-          hora: formData.hora,
+          fecha_hora: fechaHora,
           ubicacion: formData.ubicacion,
           descripcion: formData.descripcion || null,
         };
@@ -223,9 +224,10 @@ export default function DashboardGestor() {
           await entrenamientos.crear(data);
         }
       } else {
+        // Combinar fecha y hora en formato ISO para partidos
+        const fechaHora = `${formData.fecha}T${formData.hora}:00`;
         const data = {
-          fecha: formData.fecha,
-          hora: formData.hora,
+          fecha_hora: fechaHora,
           ubicacion: formData.ubicacion,
           rival: formData.rival,
           tipo: formData.tipo,
