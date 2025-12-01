@@ -215,7 +215,7 @@ export default function DetalleAsistencia() {
         </div>
       )}
 
-      {usuario?.rol === "gestor" && (
+      {usuario?.rol === "gestor" && evento?.estado !== "finalizado" && (
         <div className="flex flex-wrap gap-2 ml-14">
           <button
             onClick={() => handleCambiarEstado(asistencia, "confirmado")}
@@ -248,6 +248,11 @@ export default function DetalleAsistencia() {
           >
             ⏳ Pendiente
           </button>
+        </div>
+      )}
+      {usuario?.rol === "gestor" && evento?.estado === "finalizado" && (
+        <div className="ml-14 text-xs sm:text-sm text-gray-500 italic">
+          🔒 Partido finalizado - No se pueden modificar asistencias
         </div>
       )}
     </>
@@ -307,16 +312,25 @@ export default function DetalleAsistencia() {
               {usuario?.rol === "gestor" && tipo === "partidos" && (
                 <button
                   onClick={() => navigate(`/configurar-partido/${id}`)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
-                  title={`Configurar partido ${
-                    evento.asistencias
-                      ? `(${
-                          evento.asistencias.filter(
-                            (a) => a.estado === "confirmado"
-                          ).length
-                        } confirmados)`
-                      : ""
+                  disabled={evento.estado === "finalizado"}
+                  className={`px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 text-sm sm:text-base whitespace-nowrap ${
+                    evento.estado === "finalizado"
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
                   }`}
+                  title={
+                    evento.estado === "finalizado"
+                      ? "Partido finalizado - No se puede configurar"
+                      : `Configurar partido ${
+                          evento.asistencias
+                            ? `(${
+                                evento.asistencias.filter(
+                                  (a) => a.estado === "confirmado"
+                                ).length
+                              } confirmados)`
+                            : ""
+                        }`
+                  }
                 >
                   <svg
                     className="w-5 h-5"
@@ -331,7 +345,9 @@ export default function DetalleAsistencia() {
                       d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
                     />
                   </svg>
-                  Configurar Partido
+                  {evento.estado === "finalizado"
+                    ? "Partido Finalizado"
+                    : "Configurar Partido"}
                 </button>
               )}
             </div>

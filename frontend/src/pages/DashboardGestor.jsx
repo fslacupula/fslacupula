@@ -452,11 +452,6 @@ export default function DashboardGestor() {
                         📋 Ver Acta
                       </button>
                     )}
-                    {!esEntrenamiento && (
-                      <div className="text-xs text-gray-500">
-                        Estado: {evento.estado || "sin estado"}
-                      </div>
-                    )}
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
                       <button
                         onClick={() => abrirModal(evento)}
