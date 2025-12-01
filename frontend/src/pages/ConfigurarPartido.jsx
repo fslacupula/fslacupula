@@ -4,182 +4,85 @@ import PistaFutsal from "../components/PistaFutsal";
 import Marcador from "../components/Marcador";
 import { partidos, auth } from "../services/api";
 import { useAuthContext } from "@contexts";
-import { usePartidoState } from "../hooks/usePartidoState";
-import { useJugadores } from "../hooks/useJugadores";
-import { useCronometro } from "../hooks/useCronometro";
-import { useEstadisticas } from "../hooks/useEstadisticas";
-import { useLocalStorage } from "../hooks/useLocalStorage";
-import { usePartidoMonitor } from "../hooks/usePartidoMonitor";
-import { formatearTiempo } from "../utils/partidoUtils";
-import { PanelJugadoresLocales } from "../components/ConfigurarPartido/PanelJugadoresLocales";
-import PanelJugadoresVisitantes from "../components/ConfigurarPartido/PanelJugadoresVisitantes";
-import AnimacionTarjeta from "../components/ConfigurarPartido/AnimacionTarjeta";
-import BotonesAccion from "../components/ConfigurarPartido/BotonesAccion";
-import TablaMinutosJugados from "../components/ConfigurarPartido/TablaMinutosJugados";
-import ModalConfirmacionCountdown from "../components/ConfigurarPartido/modales/ModalConfirmacionCountdown";
-import ModalAlertaJugadoresFaltantes from "../components/ConfigurarPartido/modales/ModalAlertaJugadoresFaltantes";
-import VisorLocalStorage from "../components/ConfigurarPartido/modales/VisorLocalStorage";
-import ModalAlertaGeneral from "../components/ConfigurarPartido/modales/ModalAlertaGeneral";
-import ModalesPartido from "../components/ConfigurarPartido/modales/ModalesPartido";
-import DialogosPartido from "../components/ConfigurarPartido/modales/DialogosPartido";
-import BotonesUtilidades from "../components/ConfigurarPartido/BotonesUtilidades";
 
 function ConfigurarPartido() {
   const { logout } = useAuthContext();
   const navigate = useNavigate();
   const { partidoId: partidoIdParam } = useParams();
-
-  // Estado local del componente
-  const [partidoId, setPartidoId] = useState(null);
-  const [partidoInfo, setPartidoInfo] = useState(null);
+  const [jugadores, setJugadores] = useState([]);
+  const [staff, setStaff] = useState({ ENT: [], DEL: [], AUX: [], MAT: [] });
   const [loading, setLoading] = useState(true);
+  const [jugadoresAsignados, setJugadoresAsignados] = useState({});
+  const [estadisticas, setEstadisticas] = useState({});
+  const [historialAcciones, setHistorialAcciones] = useState([]);
   const [ordenColumna, setOrdenColumna] = useState("minutos");
   const [ordenAscendente, setOrdenAscendente] = useState(false);
+  const [golesLocal, setGolesLocal] = useState(0);
+  const [golesVisitante, setGolesVisitante] = useState(0);
+  const [faltasLocal, setFaltasLocal] = useState(0);
+  const [faltasVisitante, setFaltasVisitante] = useState(0);
+  const [cronometroActivo, setCronometroActivo] = useState(false);
+  const [tiempoCronometro, setTiempoCronometro] = useState(0); // Tiempo acumulado del cronómetro en segundos
+  const [timestampInicioCronometro, setTimestampInicioCronometro] =
+    useState(null); // Timestamp de cuando se activó el cronómetro
+
+  // Contadores independientes por jugador
+  const [contadoresJugadores, setContadoresJugadores] = useState({}); // { jugadorId: { tiempoAcumulado: segundos, activo: boolean, timestampInicio: timestamp } }
+
+  const [tiemposEntrada, setTiemposEntrada] = useState({}); // {jugadorId: timestampEnSegundos}
+  const [tiemposSalida, setTiemposSalida] = useState({}); // {jugadorId: timestampEnSegundos de última salida}
+  const [flashEffect, setFlashEffect] = useState({
+    type: null,
+    jugadorId: null,
+    timestamp: null,
+  });
+  const [mostrarTarjeta, setMostrarTarjeta] = useState({
+    visible: false,
+    tipo: null, // "amarilla", "roja", o "gol"
+    dorsal: null,
+  });
+  const [dorsalesVisitantes, setDorsalesVisitantes] = useState({});
+  const [editandoDorsal, setEditandoDorsal] = useState(null);
+  const [jugadoresVisitantesActivos, setJugadoresVisitantesActivos] = useState(
+    Object.fromEntries([...Array(12)].map((_, i) => [i + 1, true]))
+  );
+  const [partidoId, setPartidoId] = useState(null);
+  const [partidoInfo, setPartidoInfo] = useState(null);
   const [accionActiva, setAccionActiva] = useState(null); // null | "amarilla" | "roja" | "gol" | "falta"
   const [posicionSeleccionada, setPosicionSeleccionada] = useState(null); // null | "portero" | "cierre" | "alaSuperior" | "alaInferior" | "pivote"
-  const [editandoDorsal, setEditandoDorsal] = useState(null);
 
-  // Custom hooks
-  const partidoState = usePartidoState(partidoId);
-  const jugadoresHook = useJugadores(partidoId);
-  const cronometroHook = useCronometro();
-  const estadisticasHook = useEstadisticas();
+  // Temporizador para desmarcar acción activa después de 10 segundos
+  useEffect(() => {
+    if (accionActiva) {
+      const timer = setTimeout(() => {
+        setAccionActiva(null);
+      }, 10000); // 10 segundos
 
-  // Destructuring de los hooks
-  const {
-    estadoPartido,
-    periodoActual,
-    golesLocal,
-    golesVisitante,
-    faltasLocal,
-    faltasVisitante,
-    faltasLocalPrimera,
-    faltasLocalSegunda,
-    faltasVisitantePrimera,
-    faltasVisitanteSegunda,
-    tiemposMuertosLocal,
-    tiemposMuertosVisitante,
-    contadorTiempoMuerto,
-    tiempoMuertoActivo,
-    setEstadoPartido,
-    setPeriodoActual,
-    setGolesLocal,
-    setGolesVisitante,
-    setFaltasLocalPrimera,
-    setFaltasLocalSegunda,
-    setFaltasVisitantePrimera,
-    setFaltasVisitanteSegunda,
-    setTiemposMuertosLocal,
-    setTiemposMuertosVisitante,
-    setTiempoMuertoActivo,
-    setContadorTiempoMuerto,
-    registrarTiempoMuerto,
-  } = partidoState;
+      return () => clearTimeout(timer);
+    }
+  }, [accionActiva]);
 
-  const {
-    jugadoresAsignados,
-    jugadores,
-    staff,
-    dorsalesVisitantes,
-    jugadoresVisitantesActivos,
-    elementoArrastrado,
-    setJugadoresAsignados,
-    setJugadores,
-    setStaff,
-    setDorsalesVisitantes,
-    setJugadoresVisitantesActivos,
-    handleDragStart,
-    handleDrop,
-    handlePosicionClick,
-    asignarJugadorAPosicion,
-    obtenerJugador,
-    obtenerDorsal,
-    obtenerNombre,
-    actualizarDorsalVisitante,
-    toggleJugadorVisitanteActivo,
-    esJugadorVisitanteActivo,
-  } = jugadoresHook;
+  // Estados para el flujo del partido
+  const [estadoPartido, setEstadoPartido] = useState("configuracion"); // "configuracion" | "primera_parte" | "descanso" | "segunda_parte" | "finalizado"
+  const [periodoActual, setPeriodoActual] = useState(1); // 1 o 2
+  const [faltasLocalPrimera, setFaltasLocalPrimera] = useState(0);
+  const [faltasLocalSegunda, setFaltasLocalSegunda] = useState(0);
+  const [faltasVisitantePrimera, setFaltasVisitantePrimera] = useState(0);
+  const [faltasVisitanteSegunda, setFaltasVisitanteSegunda] = useState(0);
 
-  const {
-    cronometroActivo,
-    tiempoCronometro,
-    timestampInicioCronometro,
-    tiempoCronometroAcumulado,
-    contadoresJugadores,
-    tiemposEntrada,
-    tiemposSalida,
-    setCronometroActivo,
-    setTiempoCronometro,
-    setTimestampInicioCronometro,
-    setTiempoCronometroAcumulado,
-    setContadoresJugadores,
-    setTiemposEntrada,
-    setTiemposSalida,
-    iniciarCronometro,
-    pausarCronometro,
-    reiniciarCronometro,
-    registrarEntrada,
-    registrarSalida,
-    obtenerTiempoJugador,
-    esJugadorActivo,
-  } = cronometroHook;
-
-  const {
-    estadisticas,
-    historialAcciones,
-    flashGol,
-    flashFalta,
-    mostrarTarjeta,
-    setEstadisticas,
-    setHistorialAcciones,
-    setFlashGol,
-    setFlashFalta,
-    setMostrarTarjeta,
-    registrarAccion,
-    deshacerAccion,
-    obtenerEstadisticasJugador,
-    obtenerHistorialJugador,
-    filtrarHistorialPorTipo,
-    contarAcciones,
-  } = estadisticasHook;
-
-  // Hook de monitoreo de jugadores
-  const { alertaJugadoresFaltantes, cerrarAlerta } = usePartidoMonitor(
-    jugadoresAsignados,
-    estadoPartido
-  );
-
-  // Hook de localStorage
-  const localStorageHook = useLocalStorage(partidoId, {
-    jugadoresAsignados,
-    dorsalesVisitantes,
-    jugadoresVisitantesActivos,
-    estadoPartido,
-    periodoActual,
-    golesLocal,
-    golesVisitante,
-    faltasLocalPrimera,
-    faltasLocalSegunda,
-    faltasVisitantePrimera,
-    faltasVisitanteSegunda,
-    tiemposMuertosLocal,
-    tiemposMuertosVisitante,
-    cronometroActivo,
-    tiempoCronometro,
-    timestampInicioCronometro,
-    tiempoCronometroAcumulado,
-    contadoresJugadores,
-    tiemposEntrada,
-    tiemposSalida,
-    estadisticas,
-    historialAcciones,
+  // Estados para tiempos muertos (1 por equipo por parte)
+  const [tiemposMuertosLocal, setTiemposMuertosLocal] = useState({
+    primera: false,
+    segunda: false,
+  });
+  const [tiemposMuertosVisitante, setTiemposMuertosVisitante] = useState({
+    primera: false,
+    segunda: false,
   });
 
-  const {
-    verificarDatosLocalStorage,
-    cargarDesdeLocalStorage,
-    limpiarLocalStoragePartido,
-  } = localStorageHook;
+  // Estados para contador de tiempo muerto (1 minuto)
+  const [contadorTiempoMuerto, setContadorTiempoMuerto] = useState(null); // null o { segundosRestantes: 60, timestampInicio: timestamp }
+  const [tiempoMuertoActivo, setTiempoMuertoActivo] = useState(false);
 
   // Estados para confirmaciones
   const [confirmacionPendiente, setConfirmacionPendiente] = useState(null); // { tipo: string, data: any, timestamp: number }
@@ -223,20 +126,31 @@ function ConfigurarPartido() {
   }); // tipo: info, success, error
   const [modalVolverDashboard, setModalVolverDashboard] = useState(false);
 
-  // Temporizador para desmarcar acción activa después de 10 segundos
-  useEffect(() => {
-    if (accionActiva) {
-      const timer = setTimeout(() => {
-        setAccionActiva(null);
-      }, 10000); // 10 segundos
-
-      return () => clearTimeout(timer);
-    }
-  }, [accionActiva]);
+  // Estado para monitoreo de jugadores en pista
+  const [alertaJugadoresFaltantes, setAlertaJugadoresFaltantes] =
+    useState(false);
 
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // Actualizar faltas totales cuando cambian las faltas por período
+  useEffect(() => {
+    // Mostrar solo las faltas del período actual en el marcador
+    if (periodoActual === 1) {
+      setFaltasLocal(faltasLocalPrimera);
+      setFaltasVisitante(faltasVisitantePrimera);
+    } else if (periodoActual === 2) {
+      setFaltasLocal(faltasLocalSegunda);
+      setFaltasVisitante(faltasVisitanteSegunda);
+    }
+  }, [
+    faltasLocalPrimera,
+    faltasLocalSegunda,
+    faltasVisitantePrimera,
+    faltasVisitanteSegunda,
+    periodoActual,
+  ]);
 
   // Contador para confirmaciones temporales (5 segundos)
   useEffect(() => {
@@ -269,12 +183,413 @@ function ConfigurarPartido() {
     return () => clearInterval(interval);
   }, []);
 
-  // ===== FUNCIONES DE UTILIDAD ===== //
+  // Cargar dorsales visitantes cuando tengamos el partidoId
+  useEffect(() => {
+    if (partidoId) {
+      const claveLocalStorage = `dorsalesVisitantes_partido_${partidoId}`;
+      const dorsalesGuardados = localStorage.getItem(claveLocalStorage);
+      if (dorsalesGuardados) {
+        setDorsalesVisitantes(JSON.parse(dorsalesGuardados));
+      }
+    }
+  }, [partidoId]);
 
-  // handleDragStart viene del hook useJugadores
+  // Cargar jugadores visitantes activos cuando tengamos el partidoId
+  useEffect(() => {
+    if (partidoId) {
+      const claveLocalStorage = `jugadoresVisitantesActivos_partido_${partidoId}`;
+      const jugadoresGuardados = localStorage.getItem(claveLocalStorage);
+      if (jugadoresGuardados) {
+        setJugadoresVisitantesActivos(JSON.parse(jugadoresGuardados));
+      } else {
+        // Si no hay datos guardados, reiniciar todos a activos
+        setJugadoresVisitantesActivos(
+          Object.fromEntries([...Array(12)].map((_, i) => [i + 1, true]))
+        );
+      }
+    }
+  }, [partidoId]);
 
-  const handleDropLocal = (jugador, posicion) => {
-    // Esta es una versión wrapper para mantener compatibilidad con código legacy
+  // Guardar tiempos muertos en localStorage
+  useEffect(() => {
+    if (partidoId) {
+      localStorage.setItem(
+        `tiemposMuertosLocal_partido_${partidoId}`,
+        JSON.stringify(tiemposMuertosLocal)
+      );
+      localStorage.setItem(
+        `tiemposMuertosVisitante_partido_${partidoId}`,
+        JSON.stringify(tiemposMuertosVisitante)
+      );
+    }
+  }, [partidoId, tiemposMuertosLocal, tiemposMuertosVisitante]);
+
+  // Guardar tiempos muertos en localStorage
+  useEffect(() => {
+    if (partidoId) {
+      localStorage.setItem(
+        `tiemposMuertosLocal_partido_${partidoId}`,
+        JSON.stringify(tiemposMuertosLocal)
+      );
+      localStorage.setItem(
+        `tiemposMuertosVisitante_partido_${partidoId}`,
+        JSON.stringify(tiemposMuertosVisitante)
+      );
+    }
+  }, [partidoId, tiemposMuertosLocal, tiemposMuertosVisitante]);
+
+  // Guardar jugadores asignados en localStorage
+  useEffect(() => {
+    if (partidoId && Object.keys(jugadoresAsignados).length > 0) {
+      localStorage.setItem(
+        `jugadoresAsignados_partido_${partidoId}`,
+        JSON.stringify(jugadoresAsignados)
+      );
+    }
+  }, [partidoId, jugadoresAsignados]);
+
+  // Guardar estadísticas en localStorage
+  useEffect(() => {
+    if (partidoId && Object.keys(estadisticas).length > 0) {
+      localStorage.setItem(
+        `estadisticas_partido_${partidoId}`,
+        JSON.stringify(estadisticas)
+      );
+    }
+  }, [partidoId, estadisticas]);
+
+  // Guardar jugadores visitantes activos en localStorage
+  useEffect(() => {
+    if (partidoId) {
+      localStorage.setItem(
+        `jugadoresVisitantesActivos_partido_${partidoId}`,
+        JSON.stringify(jugadoresVisitantesActivos)
+      );
+    }
+  }, [partidoId, jugadoresVisitantesActivos]);
+
+  // Guardar historial de acciones en localStorage
+  useEffect(() => {
+    if (partidoId && historialAcciones.length > 0) {
+      localStorage.setItem(
+        `historialAcciones_partido_${partidoId}`,
+        JSON.stringify(historialAcciones)
+      );
+    }
+  }, [partidoId, historialAcciones]);
+
+  // Guardar cronómetro en localStorage
+  useEffect(() => {
+    if (partidoId) {
+      const cronometroData = {
+        tiempoCronometro,
+        contadoresJugadores,
+      };
+      localStorage.setItem(
+        `cronometro_partido_${partidoId}`,
+        JSON.stringify(cronometroData)
+      );
+    }
+  }, [partidoId, tiempoCronometro, contadoresJugadores]);
+
+  // Guardar tiempos de entrada en localStorage
+  useEffect(() => {
+    if (partidoId && Object.keys(tiemposEntrada).length > 0) {
+      localStorage.setItem(
+        `tiemposEntrada_partido_${partidoId}`,
+        JSON.stringify(tiemposEntrada)
+      );
+    }
+  }, [partidoId, tiemposEntrada]);
+
+  // Guardar tiempos de salida en localStorage
+  useEffect(() => {
+    if (partidoId && Object.keys(tiemposSalida).length > 0) {
+      localStorage.setItem(
+        `tiemposSalida_partido_${partidoId}`,
+        JSON.stringify(tiemposSalida)
+      );
+    }
+  }, [partidoId, tiemposSalida]);
+
+  // Guardar estado del partido en localStorage
+  useEffect(() => {
+    if (partidoId) {
+      const estadoData = {
+        estadoPartido,
+        periodoActual,
+        golesLocal,
+        golesVisitante,
+        faltasLocalPrimera,
+        faltasLocalSegunda,
+        faltasVisitantePrimera,
+        faltasVisitanteSegunda,
+      };
+      localStorage.setItem(
+        `estadoPartido_partido_${partidoId}`,
+        JSON.stringify(estadoData)
+      );
+    }
+  }, [
+    partidoId,
+    estadoPartido,
+    periodoActual,
+    golesLocal,
+    golesVisitante,
+    faltasLocalPrimera,
+    faltasLocalSegunda,
+    faltasVisitantePrimera,
+    faltasVisitanteSegunda,
+  ]);
+
+  // Contador de tiempo muerto (1 minuto)
+  useEffect(() => {
+    if (tiempoMuertoActivo && contadorTiempoMuerto) {
+      const intervalo = setInterval(() => {
+        const ahora = Date.now();
+        const tiempoTranscurrido =
+          (ahora - contadorTiempoMuerto.timestampInicio) / 1000;
+        const segundosRestantes = Math.max(
+          0,
+          60 - Math.floor(tiempoTranscurrido)
+        );
+
+        if (segundosRestantes <= 0) {
+          // Terminar tiempo muerto
+          setTiempoMuertoActivo(false);
+          setContadorTiempoMuerto(null);
+        }
+      }, 100); // Actualizar cada 100ms para mayor precisión
+
+      return () => clearInterval(intervalo);
+    }
+  }, [tiempoMuertoActivo, contadorTiempoMuerto]);
+
+  // Limpiar efecto de flash después de la animación
+  useEffect(() => {
+    if (flashEffect.timestamp) {
+      const timeout = setTimeout(() => {
+        setFlashEffect({ type: null, jugadorId: null, timestamp: null });
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [flashEffect.timestamp]);
+
+  // Limpiar animación de tarjeta después de 2 segundos
+  useEffect(() => {
+    if (mostrarTarjeta.visible) {
+      const timeout = setTimeout(() => {
+        setMostrarTarjeta({ visible: false, tipo: null, dorsal: null });
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [mostrarTarjeta.visible]);
+
+  // Gestionar el inicio/pausa del cronómetro
+  useEffect(() => {
+    if (cronometroActivo) {
+      // Cuando se ACTIVA el cronómetro
+      const ahora = Date.now();
+      setTimestampInicioCronometro(ahora);
+
+      // Activar contadores para jugadores que están en pista en este momento
+      setContadoresJugadores((prev) => {
+        const nuevos = { ...prev };
+
+        Object.values(jugadoresAsignados).forEach((jugador) => {
+          if (jugador && jugador.id) {
+            if (!nuevos[jugador.id]) {
+              nuevos[jugador.id] = {
+                tiempoAcumulado: 0,
+                activo: false,
+                timestampInicio: null,
+              };
+            }
+            // Solo activar si no estaba ya activo (para evitar resetear el timestamp)
+            if (!nuevos[jugador.id].activo) {
+              nuevos[jugador.id].activo = true;
+              nuevos[jugador.id].timestampInicio = ahora;
+            }
+          }
+        });
+
+        return nuevos;
+      });
+    } else {
+      // Cuando se PAUSA el cronómetro
+      if (timestampInicioCronometro) {
+        const tiempoTranscurrido =
+          (Date.now() - timestampInicioCronometro) / 1000;
+        setTiempoCronometro((prev) => prev + tiempoTranscurrido);
+        setTimestampInicioCronometro(null);
+
+        // Pausar todos los contadores y acumular su tiempo
+        const ahora = Date.now();
+        setContadoresJugadores((prev) => {
+          const nuevos = { ...prev };
+
+          Object.keys(nuevos).forEach((jugadorId) => {
+            if (nuevos[jugadorId].activo && nuevos[jugadorId].timestampInicio) {
+              const tiempoSesion =
+                (ahora - nuevos[jugadorId].timestampInicio) / 1000;
+              nuevos[jugadorId].tiempoAcumulado += tiempoSesion;
+              nuevos[jugadorId].activo = false;
+              nuevos[jugadorId].timestampInicio = null;
+            }
+          });
+
+          return nuevos;
+        });
+      }
+    }
+  }, [cronometroActivo]); // Eliminado jugadoresAsignados de las dependencias
+
+  // Gestionar pausa/reanudación de contadores durante tiempo muerto
+  useEffect(() => {
+    if (cronometroActivo) {
+      const ahora = Date.now();
+
+      if (tiempoMuertoActivo) {
+        // PAUSAR contadores de jugadores al iniciar tiempo muerto
+        console.log("⏸️ Pausando contadores de jugadores por tiempo muerto");
+        setContadoresJugadores((prev) => {
+          const nuevos = { ...prev };
+
+          Object.keys(nuevos).forEach((jugadorId) => {
+            if (nuevos[jugadorId].activo && nuevos[jugadorId].timestampInicio) {
+              const tiempoSesion =
+                (ahora - nuevos[jugadorId].timestampInicio) / 1000;
+              nuevos[jugadorId].tiempoAcumulado += tiempoSesion;
+              nuevos[jugadorId].activo = false;
+              nuevos[jugadorId].timestampInicio = null;
+            }
+          });
+
+          return nuevos;
+        });
+      } else {
+        // REANUDAR contadores de jugadores al terminar tiempo muerto
+        console.log("▶️ Reanudando contadores de jugadores tras tiempo muerto");
+        setContadoresJugadores((prev) => {
+          const nuevos = { ...prev };
+
+          Object.values(jugadoresAsignados).forEach((jugador) => {
+            if (jugador && jugador.id && nuevos[jugador.id]) {
+              // Solo reactivar si el jugador está en pista
+              if (!nuevos[jugador.id].activo) {
+                nuevos[jugador.id].activo = true;
+                nuevos[jugador.id].timestampInicio = ahora;
+              }
+            }
+          });
+
+          return nuevos;
+        });
+      }
+    }
+  }, [tiempoMuertoActivo, cronometroActivo, jugadoresAsignados]);
+
+  // Monitoreo de jugadores en pista cada 10 segundos (solo durante el partido)
+  useEffect(() => {
+    // Resetear alerta cuando cambian los jugadores asignados
+    setAlertaJugadoresFaltantes(false);
+
+    if (
+      estadoPartido === "primera_parte" ||
+      estadoPartido === "segunda_parte"
+    ) {
+      console.log(
+        "🔄 Reiniciando monitoreo de jugadores en pista (comprobación en 10s)"
+      );
+
+      // Hacer la comprobación después de 10 segundos
+      const timeout = setTimeout(() => {
+        const cantidadJugadores = Object.keys(jugadoresAsignados).length;
+
+        console.log(`🔍 Comprobación pista: ${cantidadJugadores}/5 jugadores`);
+        console.log("📋 jugadoresAsignados:", jugadoresAsignados);
+
+        if (cantidadJugadores < 5) {
+          // Faltan jugadores después de 10 segundos
+          console.log(
+            "⚠️ ALERTA: Faltan jugadores en pista después de 10 segundos"
+          );
+          setAlertaJugadoresFaltantes(true);
+        } else {
+          console.log("✅ TODO OK: 5 jugadores en pista");
+        }
+      }, 10000); // Comprobación única después de 10 segundos
+
+      return () => {
+        console.log("🛑 Cancelando comprobación de jugadores");
+        clearTimeout(timeout);
+      };
+    } else {
+      // Si no está en partido, resetear
+      setAlertaJugadoresFaltantes(false);
+    }
+  }, [estadoPartido, jugadoresAsignados]);
+
+  // Intervalo para actualizar estadísticas de jugadores con contadores activos
+  useEffect(() => {
+    let intervalo;
+    if (cronometroActivo) {
+      intervalo = setInterval(() => {
+        const ahora = Date.now();
+
+        setEstadisticas((prev) => {
+          const nuevasStats = { ...prev };
+
+          Object.entries(contadoresJugadores).forEach(
+            ([jugadorId, contador]) => {
+              if (contador.activo && contador.timestampInicio) {
+                const tiempoSesionActual =
+                  (ahora - contador.timestampInicio) / 1000;
+                const tiempoTotal =
+                  contador.tiempoAcumulado + tiempoSesionActual;
+
+                if (!nuevasStats[jugadorId]) {
+                  nuevasStats[jugadorId] = {
+                    goles: 0,
+                    asistencias: 0,
+                    paradas: 0,
+                    faltas: 0,
+                    amarillas: 0,
+                    rojas: 0,
+                    minutos: 0,
+                    minutosAcumulados: 0,
+                  };
+                }
+
+                nuevasStats[jugadorId].minutos = tiempoTotal;
+                nuevasStats[jugadorId].minutosAcumulados = tiempoTotal;
+              }
+            }
+          );
+
+          return nuevasStats;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(intervalo);
+  }, [cronometroActivo, contadoresJugadores, tiempoMuertoActivo]);
+
+  // Función helper para formatear segundos a mm:ss
+  const formatearTiempo = (segundos) => {
+    const mins = Math.floor(segundos / 60);
+    const segs = Math.floor(segundos % 60);
+    return `${String(mins).padStart(2, "0")}:${String(segs).padStart(2, "0")}`;
+  };
+
+  const handleDragStart = (e, jugador) => {
+    e.dataTransfer.setData("jugador", JSON.stringify(jugador));
+    e.dataTransfer.effectAllowed = "move";
+    // Hacer que solo el elemento arrastrado tenga opacidad, no los demás
+    e.target.style.opacity = "0.5";
+  };
+
+  const handleDrop = (jugador, posicion) => {
+    // Prevenir que jugadores visitantes se pongan en pista
     const esVisitante =
       jugador.id &&
       (jugador.id.toString().startsWith("visitante-") ||
@@ -284,6 +599,7 @@ function ConfigurarPartido() {
       return;
     }
 
+    // Prevenir que el staff (E, D, A) se ponga en pista
     const esStaff = jugador.id && jugador.id.toString().startsWith("staff-");
     if (esStaff) {
       console.log(
@@ -292,23 +608,40 @@ function ConfigurarPartido() {
       return;
     }
 
-    // Asignar directamente usando el setter del hook
     setJugadoresAsignados((prev) => {
+      // Primero, eliminar al jugador de cualquier posición anterior
       const nuevo = { ...prev };
-      // Eliminar al jugador de cualquier posición anterior
       Object.keys(nuevo).forEach((pos) => {
         if (nuevo[pos] && nuevo[pos].id === jugador.id) {
           delete nuevo[pos];
         }
       });
-      // Asignarlo a la nueva posición
+
+      // Luego, asignarlo a la nueva posición
       nuevo[posicion] = jugador;
       return nuevo;
     });
 
-    // Registrar entrada si el cronómetro está activo
-    if (cronometroActivo && jugador.id) {
-      registrarEntrada(jugador.id);
+    // Activar contador del jugador si el cronómetro está activo
+    if (cronometroActivo) {
+      const ahora = Date.now();
+      setContadoresJugadores((prev) => {
+        const nuevoContador = { ...prev };
+
+        if (!nuevoContador[jugador.id]) {
+          nuevoContador[jugador.id] = {
+            tiempoAcumulado: 0,
+            activo: false,
+            timestampInicio: null,
+          };
+        }
+
+        // Activar su contador
+        nuevoContador[jugador.id].activo = true;
+        nuevoContador[jugador.id].timestampInicio = ahora;
+
+        return nuevoContador;
+      });
     }
   };
 
@@ -372,19 +705,51 @@ function ConfigurarPartido() {
   };
 
   // Función para remover jugador de una posición específica
-  const handlePosicionClickLocal = (posicion) => {
+  const handlePosicionClick = (posicion) => {
     const jugadorEnPosicion = jugadoresAsignados[posicion];
     if (jugadorEnPosicion) {
-      // Remover jugador de la posición usando el setter del hook
+      // Remover jugador de la posición
       setJugadoresAsignados((prev) => {
         const nuevo = { ...prev };
         delete nuevo[posicion];
         return nuevo;
       });
 
-      // Registrar salida usando el hook de cronómetro
-      if (jugadorEnPosicion.id && cronometroActivo) {
-        registrarSalida(jugadorEnPosicion.id);
+      // Verificar si el jugador sigue en alguna otra posición
+      const sigueEnPista = Object.entries(jugadoresAsignados).some(
+        ([pos, jug]) =>
+          pos !== posicion && jug && jug.id === jugadorEnPosicion.id
+      );
+
+      // Si ya no está en ninguna posición, desactivar contador y registrar salida
+      if (!sigueEnPista) {
+        // Desactivar el contador del jugador si está activo
+        if (cronometroActivo) {
+          const ahora = Date.now();
+          setContadoresJugadores((prev) => {
+            const nuevoContador = { ...prev };
+
+            if (
+              nuevoContador[jugadorEnPosicion.id] &&
+              nuevoContador[jugadorEnPosicion.id].activo
+            ) {
+              const tiempoSesion =
+                (ahora - nuevoContador[jugadorEnPosicion.id].timestampInicio) /
+                1000;
+              nuevoContador[jugadorEnPosicion.id].tiempoAcumulado +=
+                tiempoSesion;
+              nuevoContador[jugadorEnPosicion.id].activo = false;
+              nuevoContador[jugadorEnPosicion.id].timestampInicio = null;
+            }
+
+            return nuevoContador;
+          });
+        }
+
+        setTiemposSalida((prev) => ({
+          ...prev,
+          [jugadorEnPosicion.id]: Date.now(),
+        }));
       }
     }
   };
@@ -392,15 +757,15 @@ function ConfigurarPartido() {
   // Ejecutar acción sobre un jugador (usado por drag&drop y por modo click)
   const ejecutarAccion = (jugador, tipoAccion) => {
     if (!jugador || !tipoAccion) return;
-    registrarAccionLegacy(jugador, tipoAccion);
+    registrarAccion(jugador, tipoAccion);
     // Desactivar modo de selección después de aplicar la acción
     setAccionActiva(null);
   };
 
   // Asignar jugador a posición desde modo click
-  const asignarJugadorAPosicionLocal = (jugador, posicion) => {
+  const asignarJugadorAPosicion = (jugador, posicion) => {
     if (!jugador || !posicion) return;
-    handleDropLocal(jugador, posicion);
+    handleDrop(jugador, posicion);
     // Desactivar modo de selección de posición
     setPosicionSeleccionada(null);
   };
@@ -420,7 +785,7 @@ function ConfigurarPartido() {
     }
   };
 
-  const registrarAccionLegacy = (jugador, accion) => {
+  const registrarAccion = (jugador, accion) => {
     const esVisitante =
       jugador.id &&
       (jugador.id.toString().startsWith("visitante-") ||
@@ -571,7 +936,7 @@ function ConfigurarPartido() {
   };
 
   // Función para registrar tiempo muerto
-  const registrarTiempoMuertoLegacy = (equipo) => {
+  const registrarTiempoMuerto = (equipo) => {
     if (estadoPartido === "configuracion" || estadoPartido === "finalizado") {
       return;
     }
@@ -746,7 +1111,7 @@ function ConfigurarPartido() {
     console.log("Acción deshecha:", ultimaAccion);
   };
 
-  const actualizarDorsalVisitanteLegacy = (numeroOriginal, nuevoValor) => {
+  const actualizarDorsalVisitante = (numeroOriginal, nuevoValor) => {
     if (!partidoId) {
       console.warn("No hay partidoId disponible para guardar dorsales");
       return;
@@ -898,8 +1263,7 @@ function ConfigurarPartido() {
         idPartidoActual = partidoIdParam;
 
         // 1. Verificar si hay datos en localStorage para este partido específico
-        const datosLocalStorage =
-          verificarDatosLocalStorageLegacy(idPartidoActual);
+        const datosLocalStorage = verificarDatosLocalStorage(idPartidoActual);
 
         if (datosLocalStorage) {
           // Hay datos en localStorage, preguntar si quiere cargarlos
@@ -940,7 +1304,7 @@ function ConfigurarPartido() {
   };
 
   // Función para verificar si hay datos en localStorage para un partido específico
-  const verificarDatosLocalStorageLegacy = (idPartido) => {
+  const verificarDatosLocalStorage = (idPartido) => {
     try {
       const claves = [
         `jugadoresAsignados_partido_${idPartido}`,
@@ -1167,7 +1531,7 @@ function ConfigurarPartido() {
   };
 
   // Función para cargar datos desde localStorage
-  const cargarDesdeLocalStorageLegacy = () => {
+  const cargarDesdeLocalStorage = () => {
     if (!datosLocalStoragePartido) return;
 
     try {
@@ -1278,13 +1642,13 @@ function ConfigurarPartido() {
         mensaje: "Error al cargar datos. Se iniciará un partido nuevo.",
         tipo: "error",
       });
-      limpiarLocalStoragePartidoLegacy();
+      limpiarLocalStoragePartido();
       cargarDatosPartido(partidoId);
     }
   };
 
   // Función para limpiar localStorage de un partido específico
-  const limpiarLocalStoragePartidoLegacy = () => {
+  const limpiarLocalStoragePartido = () => {
     if (!partidoId) return;
 
     const claves = [
@@ -1311,7 +1675,7 @@ function ConfigurarPartido() {
   // Función para resetear partido (limpiar BD si es necesario)
   const resetearPartido = async () => {
     try {
-      limpiarLocalStoragePartidoLegacy();
+      limpiarLocalStoragePartido();
       setMostrarDialogoResetPartido(false);
 
       // Recargar la página para limpiar completamente el estado
@@ -1339,7 +1703,7 @@ function ConfigurarPartido() {
       return;
     }
 
-    const datos = verificarDatosLocalStorageLegacy(partidoId);
+    const datos = verificarDatosLocalStorage(partidoId);
     setDatosLocalStoragePartido(datos);
     setMostrarVisorLocalStorage(true);
   };
@@ -1763,10 +2127,8 @@ function ConfigurarPartido() {
           onFinalizarPrimeraParte={finalizarPrimeraParte}
           onIniciarSegundaParte={iniciarSegundaParte}
           onFinalizarPartido={finalizarPartidoDesdeSegundaParte}
-          onTiempoMuertoLocal={() => registrarTiempoMuertoLegacy("local")}
-          onTiempoMuertoVisitante={() =>
-            registrarTiempoMuertoLegacy("visitante")
-          }
+          onTiempoMuertoLocal={() => registrarTiempoMuerto("local")}
+          onTiempoMuertoVisitante={() => registrarTiempoMuerto("visitante")}
           tiemposMuertosLocal={tiemposMuertosLocal}
           tiemposMuertosVisitante={tiemposMuertosVisitante}
           periodoActual={periodoActual}
@@ -1775,25 +2137,630 @@ function ConfigurarPartido() {
         />
 
         {/* Animación de Tarjeta/Gol Espectacular */}
-        <AnimacionTarjeta mostrarTarjeta={mostrarTarjeta} />
+        {mostrarTarjeta.visible && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+            <div className="relative animate-slideUp">
+              {/* Mano sosteniendo la tarjeta o balón */}
+              <div className="relative">
+                {mostrarTarjeta.tipo === "5faltas" ? (
+                  /* Mano con 5 dedos para indicar 5 faltas */
+                  <div className="flex flex-col items-center gap-6 animate-pulse">
+                    <div className="text-6xl font-bold text-red-600 drop-shadow-lg animate-bounce">
+                      ¡5 FALTAS!
+                    </div>
+
+                    {/* Mano con 5 dedos extendidos */}
+                    <div className="relative w-64 h-80 animate-wiggle">
+                      {/* Palma de la mano */}
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-48 bg-gradient-to-b from-amber-500 to-amber-600 rounded-t-full rounded-b-3xl shadow-2xl border-4 border-amber-700"></div>
+
+                      {/* Los 5 dedos */}
+                      {/* Pulgar (izquierda, más bajo) */}
+                      <div className="absolute bottom-32 left-2 w-10 h-24 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full shadow-xl transform -rotate-45 border-4 border-amber-700">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          1
+                        </div>
+                      </div>
+
+                      {/* Índice */}
+                      <div className="absolute bottom-48 left-8 w-9 h-32 bg-gradient-to-t from-amber-500 to-amber-600 rounded-full shadow-xl transform -rotate-12 border-4 border-amber-700">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          2
+                        </div>
+                      </div>
+
+                      {/* Medio (el más largo) */}
+                      <div className="absolute bottom-48 left-1/2 -translate-x-1/2 w-9 h-36 bg-gradient-to-t from-amber-500 to-amber-600 rounded-full shadow-xl border-4 border-amber-700">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          3
+                        </div>
+                      </div>
+
+                      {/* Anular */}
+                      <div className="absolute bottom-48 right-8 w-9 h-32 bg-gradient-to-t from-amber-500 to-amber-600 rounded-full shadow-xl transform rotate-12 border-4 border-amber-700">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          4
+                        </div>
+                      </div>
+
+                      {/* Meñique (derecha, más corto) */}
+                      <div className="absolute bottom-44 right-2 w-8 h-28 bg-gradient-to-t from-amber-500 to-amber-600 rounded-full shadow-xl transform rotate-20 border-4 border-amber-700">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          5
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-4xl font-bold text-white drop-shadow-lg mt-4 bg-red-600 px-8 py-4 rounded-lg shadow-2xl">
+                      {mostrarTarjeta.equipo === "visitante"
+                        ? "VISITANTE"
+                        : "LOCAL"}
+                    </div>
+                  </div>
+                ) : mostrarTarjeta.tipo === "gol" ? (
+                  /* Balón de fútbol grande para gol */
+                  <div className="w-56 h-56 animate-bounce-custom">
+                    <div className="relative w-full h-full bg-white rounded-full shadow-2xl border-4 border-gray-800 flex items-center justify-center">
+                      {/* Patrón del balón */}
+                      <svg className="w-full h-full" viewBox="0 0 200 200">
+                        <circle
+                          cx="100"
+                          cy="100"
+                          r="95"
+                          fill="white"
+                          stroke="#000"
+                          strokeWidth="3"
+                        />
+                        {/* Pentágonos negros del balón */}
+                        <path
+                          d="M100 20 L120 40 L110 65 L90 65 L80 40 Z"
+                          fill="#000"
+                        />
+                        <path
+                          d="M180 100 L170 125 L145 135 L130 115 L145 90 Z"
+                          fill="#000"
+                        />
+                        <path
+                          d="M100 180 L80 160 L90 135 L110 135 L120 160 Z"
+                          fill="#000"
+                        />
+                        <path
+                          d="M20 100 L30 75 L55 65 L70 85 L55 110 Z"
+                          fill="#000"
+                        />
+                        <path
+                          d="M145 40 L165 50 L170 75 L150 85 L130 70 Z"
+                          fill="#000"
+                        />
+                        <path
+                          d="M55 40 L75 30 L95 35 L90 60 L65 60 Z"
+                          fill="#000"
+                        />
+                      </svg>
+                      {/* Dorsal en el centro del balón */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-7xl font-bold text-green-600 drop-shadow-lg bg-white/90 rounded-full w-28 h-28 flex items-center justify-center border-4 border-green-600">
+                          {mostrarTarjeta.dorsal}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Tarjeta amarilla o roja */
+                  <div
+                    className={`w-40 h-56 ${
+                      mostrarTarjeta.tipo === "amarilla"
+                        ? "bg-yellow-400"
+                        : "bg-red-600"
+                    } rounded-lg shadow-2xl flex items-center justify-center transform rotate-12 animate-wiggle`}
+                  >
+                    <div className="text-8xl font-bold text-white drop-shadow-lg">
+                      {mostrarTarjeta.dorsal}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mano (brazo y mano simplificada) - Solo para tarjetas */}
+                {mostrarTarjeta.tipo !== "gol" && (
+                  <div className="absolute -bottom-32 left-1/2 -translate-x-1/2">
+                    {/* Brazo */}
+                    <div className="w-16 h-40 bg-gradient-to-b from-amber-700 to-amber-800 rounded-full transform origin-top"></div>
+                    {/* Muñeca */}
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-8 bg-amber-700 rounded-full"></div>
+                    {/* Mano */}
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+                      <div className="w-20 h-16 bg-amber-600 rounded-full"></div>
+                      {/* Dedos */}
+                      <div className="absolute top-0 left-2 w-3 h-12 bg-amber-600 rounded-full transform -rotate-12"></div>
+                      <div className="absolute top-0 left-6 w-3 h-14 bg-amber-600 rounded-full transform rotate-0"></div>
+                      <div className="absolute top-0 left-10 w-3 h-13 bg-amber-600 rounded-full transform rotate-0"></div>
+                      <div className="absolute top-0 right-2 w-3 h-11 bg-amber-600 rounded-full transform rotate-12"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Contenedor principal con pista y jugadores */}
         <div className="bg-white rounded-lg shadow-md p-6 relative">
           <div className="flex gap-4 items-start">
-            {/* Jugadores Locales - Usando Componente */}
-            <PanelJugadoresLocales
-              jugadores={jugadores}
-              isJugadorAsignado={isJugadorAsignado}
-              estadisticas={estadisticas}
-              accionActiva={accionActiva}
-              posicionSeleccionada={posicionSeleccionada}
-              flashEffect={{ jugadorId: null, type: null }}
-              handleDragStart={handleDragStart}
-              handleDropFueraPista={handleDropFueraPista}
-              handleDragOverFueraPista={handleDragOverFueraPista}
-              ejecutarAccion={ejecutarAccion}
-              asignarJugadorAPosicionLocal={asignarJugadorAPosicionLocal}
-            />
+            {/* Jugadores Locales - Izquierda (2 columnas) */}
+            <div
+              className="flex-shrink-0 flex flex-col items-center"
+              onDrop={handleDropFueraPista}
+              onDragOver={handleDragOverFueraPista}
+            >
+              {/* Bolas de Staff Técnico encima de jugadores - 1 fila */}
+              <div className="flex justify-center gap-2 mb-3">
+                {/* Entrenador */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-E",
+                      nombre: "Entrenador",
+                      numero_dorsal: "E",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-E",
+                          nombre: "Entrenador",
+                          numero_dorsal: "E",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Entrenador - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-E"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      E
+                    </div>
+                  ) : estadisticas["staff-E"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      E
+                    </div>
+                  ) : (
+                    "E"
+                  )}
+                </div>
+                {/* Delegado */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-D",
+                      nombre: "Delegado",
+                      numero_dorsal: "D",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-D",
+                          nombre: "Delegado",
+                          numero_dorsal: "D",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Delegado - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-D"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      D
+                    </div>
+                  ) : estadisticas["staff-D"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      D
+                    </div>
+                  ) : (
+                    "D"
+                  )}
+                </div>
+                {/* Auxiliar */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-A",
+                      nombre: "Auxiliar",
+                      numero_dorsal: "A",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-A",
+                          nombre: "Auxiliar",
+                          numero_dorsal: "A",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Auxiliar - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-A"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      A
+                    </div>
+                  ) : estadisticas["staff-A"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      A
+                    </div>
+                  ) : (
+                    "A"
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {/* Columna 1: Primer tercio de jugadores */}
+                <div className="flex flex-col items-center gap-2">
+                  {jugadores
+                    .filter((j) => !isJugadorAsignado(j.id))
+                    .sort((a, b) => {
+                      const minutosA = estadisticas[a.id]?.minutos || 0;
+                      const minutosB = estadisticas[b.id]?.minutos || 0;
+                      return minutosA - minutosB; // Menor a mayor
+                    })
+                    .slice(
+                      0,
+                      Math.ceil(
+                        jugadores.filter((j) => !isJugadorAsignado(j.id))
+                          .length / 3
+                      )
+                    )
+                    .map((jugador) => {
+                      const asignado = isJugadorAsignado(jugador.id);
+                      const stats = estadisticas[jugador.id];
+                      const tieneAmarilla = stats?.amarillas > 0;
+                      const tieneRoja = stats?.rojas > 0;
+                      const numGoles = stats?.goles || 0;
+
+                      // Calcular porcentaje de esfuerzo (50 minutos = 3000 segundos)
+                      const segundosJugados = stats?.minutos || 0;
+                      const TOTAL_PARTIDO = 3000; // 50 minutos en segundos
+                      const porcentajeEsfuerzo = Math.min(
+                        (segundosJugados / TOTAL_PARTIDO) * 100,
+                        100
+                      );
+
+                      // Posiciones para los balones alrededor del círculo
+                      const posicionesBalones = [
+                        { className: "top-0 right-0" }, // Esquina superior derecha
+                        { className: "top-0 left-0" }, // Esquina superior izquierda
+                        { className: "bottom-0 right-0" }, // Esquina inferior derecha
+                        { className: "bottom-0 left-0" }, // Esquina inferior izquierda
+                      ];
+
+                      // Detectar si este jugador debe animarse
+                      const debeAnimarse =
+                        flashEffect.jugadorId === jugador.id &&
+                        (flashEffect.type === "amarilla" ||
+                          flashEffect.type === "roja");
+
+                      return (
+                        <div
+                          key={jugador.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, jugador)}
+                          onDragEnd={(e) => {
+                            e.target.style.opacity = "1";
+                          }}
+                          onClick={() => {
+                            if (accionActiva) {
+                              ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
+                            }
+                          }}
+                          className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
+                            asignado
+                              ? "border-gray-500 opacity-50 cursor-grab"
+                              : accionActiva
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
+                              : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
+                          } ${debeAnimarse ? "scale-125" : ""}`}
+                          style={{
+                            background: asignado
+                              ? "#9ca3af"
+                              : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
+                          }}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
+                        >
+                          <div className="flex flex-col items-center">
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                {/* Columna 2: Segundo tercio de jugadores */}
+                <div className="flex flex-col items-center gap-2">
+                  {jugadores
+                    .filter((j) => !isJugadorAsignado(j.id))
+                    .sort((a, b) => {
+                      const minutosA = estadisticas[a.id]?.minutos || 0;
+                      const minutosB = estadisticas[b.id]?.minutos || 0;
+                      return minutosA - minutosB; // Menor a mayor
+                    })
+                    .slice(
+                      Math.ceil(
+                        jugadores.filter((j) => !isJugadorAsignado(j.id))
+                          .length / 3
+                      ),
+                      Math.ceil(
+                        (jugadores.filter((j) => !isJugadorAsignado(j.id))
+                          .length *
+                          2) /
+                          3
+                      )
+                    )
+                    .map((jugador) => {
+                      const asignado = isJugadorAsignado(jugador.id);
+                      const stats = estadisticas[jugador.id];
+                      const tieneAmarilla = stats?.amarillas > 0;
+                      const tieneRoja = stats?.rojas > 0;
+                      const numGoles = stats?.goles || 0;
+
+                      // Calcular porcentaje de esfuerzo (50 minutos = 3000 segundos)
+                      const segundosJugados = stats?.minutos || 0;
+                      const TOTAL_PARTIDO = 3000; // 50 minutos en segundos
+                      const porcentajeEsfuerzo = Math.min(
+                        (segundosJugados / TOTAL_PARTIDO) * 100,
+                        100
+                      );
+
+                      // Posiciones para los balones alrededor del círculo
+                      const posicionesBalones = [
+                        { className: "top-0 right-0" }, // Esquina superior derecha
+                        { className: "top-0 left-0" }, // Esquina superior izquierda
+                        { className: "bottom-0 right-0" }, // Esquina inferior derecha
+                        { className: "bottom-0 left-0" }, // Esquina inferior izquierda
+                      ];
+
+                      // Detectar si este jugador debe animarse
+                      const debeAnimarse =
+                        flashEffect.jugadorId === jugador.id &&
+                        (flashEffect.type === "amarilla" ||
+                          flashEffect.type === "roja");
+
+                      return (
+                        <div
+                          key={jugador.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, jugador)}
+                          onDragEnd={(e) => {
+                            e.target.style.opacity = "1";
+                          }}
+                          onClick={() => {
+                            if (accionActiva) {
+                              ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
+                            }
+                          }}
+                          className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
+                            asignado
+                              ? "border-gray-500 opacity-50 cursor-grab"
+                              : accionActiva
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
+                              : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
+                          } ${debeAnimarse ? "scale-125" : ""}`}
+                          style={{
+                            background: asignado
+                              ? "#9ca3af"
+                              : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
+                          }}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
+                        >
+                          <div className="flex flex-col items-center">
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                {/* Columna 3: Tercer tercio de jugadores */}
+                <div className="flex flex-col items-center gap-2">
+                  {jugadores
+                    .filter((j) => !isJugadorAsignado(j.id))
+                    .sort((a, b) => {
+                      const minutosA = estadisticas[a.id]?.minutos || 0;
+                      const minutosB = estadisticas[b.id]?.minutos || 0;
+                      return minutosA - minutosB; // Menor a mayor
+                    })
+                    .slice(
+                      Math.ceil(
+                        (jugadores.filter((j) => !isJugadorAsignado(j.id))
+                          .length *
+                          2) /
+                          3
+                      )
+                    )
+                    .map((jugador) => {
+                      const asignado = isJugadorAsignado(jugador.id);
+                      const stats = estadisticas[jugador.id];
+                      const tieneAmarilla = stats?.amarillas > 0;
+                      const tieneRoja = stats?.rojas > 0;
+                      const numGoles = stats?.goles || 0;
+
+                      // Calcular porcentaje de esfuerzo (50 minutos = 3000 segundos)
+                      const segundosJugados = stats?.minutos || 0;
+                      const TOTAL_PARTIDO = 3000; // 50 minutos en segundos
+                      const porcentajeEsfuerzo = Math.min(
+                        (segundosJugados / TOTAL_PARTIDO) * 100,
+                        100
+                      );
+
+                      // Posiciones para los balones alrededor del círculo
+                      const posicionesBalones = [
+                        { className: "top-0 right-0" }, // Esquina superior derecha
+                        { className: "top-0 left-0" }, // Esquina superior izquierda
+                        { className: "bottom-0 right-0" }, // Esquina inferior derecha
+                        { className: "bottom-0 left-0" }, // Esquina inferior izquierda
+                      ];
+
+                      // Detectar si este jugador debe animarse
+                      const debeAnimarse =
+                        flashEffect.jugadorId === jugador.id &&
+                        (flashEffect.type === "amarilla" ||
+                          flashEffect.type === "roja");
+
+                      return (
+                        <div
+                          key={jugador.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, jugador)}
+                          onDragEnd={(e) => {
+                            e.target.style.opacity = "1";
+                          }}
+                          onClick={() => {
+                            if (accionActiva) {
+                              ejecutarAccion(jugador, accionActiva);
+                            } else if (posicionSeleccionada) {
+                              asignarJugadorAPosicion(
+                                jugador,
+                                posicionSeleccionada
+                              );
+                            }
+                          }}
+                          className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold shadow-lg transition-all duration-300 overflow-hidden ${
+                            asignado
+                              ? "border-gray-500 opacity-50 cursor-grab"
+                              : accionActiva
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-blue-300"
+                              : posicionSeleccionada
+                              ? "border-blue-700 cursor-pointer hover:scale-125 hover:ring-4 hover:ring-green-300"
+                              : "border-blue-700 cursor-grab hover:scale-110 active:cursor-grabbing"
+                          } ${debeAnimarse ? "scale-125" : ""}`}
+                          style={{
+                            background: asignado
+                              ? "#9ca3af"
+                              : `linear-gradient(to bottom, #cbd5e1 ${porcentajeEsfuerzo}%, #3b82f6 ${porcentajeEsfuerzo}%)`,
+                          }}
+                          title={
+                            accionActiva
+                              ? `Click para aplicar ${accionActiva}`
+                              : posicionSeleccionada
+                              ? `Click para asignar a ${posicionSeleccionada}`
+                              : "Arrastra a la pista o a zona de acciones"
+                          }
+                        >
+                          <div className="flex flex-col items-center">
+                            {tieneRoja ? (
+                              <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : tieneAmarilla ? (
+                              <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                                {jugador.numero_dorsal}
+                              </div>
+                            ) : (
+                              <span className="text-white text-lg">
+                                {jugador.numero_dorsal}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
 
             {/* Pista de Fútbol Sala - Centro */}
             <div className="flex-1 flex flex-col gap-4">
@@ -1815,144 +2782,1878 @@ function ConfigurarPartido() {
               />
 
               {/* Botones de acción debajo de la pista */}
-              <BotonesAccion
-                deshacer={deshacer}
-                historialAcciones={historialAcciones}
-                estadoPartido={estadoPartido}
-                handleDragOver={handleDragOver}
-                handleAccionDrop={handleAccionDrop}
-                setPosicionSeleccionada={setPosicionSeleccionada}
-                setAccionActiva={setAccionActiva}
-                accionActiva={accionActiva}
-              />
+              <div className="flex justify-center items-center gap-3">
+                <button
+                  onClick={deshacer}
+                  disabled={
+                    historialAcciones.length === 0 ||
+                    estadoPartido === "configuracion"
+                  }
+                  className="w-24 h-[74px] bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105 flex flex-col items-center justify-center cursor-pointer border-2 border-transparent hover:border-white"
+                >
+                  <svg
+                    className="w-10 h-10"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                </button>
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleAccionDrop(e, "gol")}
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "gol" ? null : "gol");
+                  }}
+                  className={`w-24 h-[74px] bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
+                    accionActiva === "gol"
+                      ? "ring-4 ring-green-300 scale-125 border-white shadow-2xl"
+                      : "border-transparent hover:border-white hover:scale-105"
+                  } ${
+                    accionActiva === "gol"
+                      ? "animate-[pulse_0.8s_ease-in-out_infinite]"
+                      : ""
+                  }`}
+                  style={{
+                    animation:
+                      accionActiva === "gol"
+                        ? "pulse 0.8s ease-in-out infinite"
+                        : "none",
+                  }}
+                  title={
+                    accionActiva === "gol"
+                      ? "Click en un jugador para anotar gol"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
+                >
+                  <svg
+                    className="w-12 h-12"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                </div>
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleAccionDrop(e, "falta")}
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "falta" ? null : "falta");
+                  }}
+                  className={`w-24 h-[74px] bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
+                    accionActiva === "falta"
+                      ? "ring-4 ring-orange-300 scale-125 border-white shadow-2xl"
+                      : "border-transparent hover:border-white hover:scale-105"
+                  } ${
+                    accionActiva === "falta"
+                      ? "animate-[pulse_0.8s_ease-in-out_infinite]"
+                      : ""
+                  }`}
+                  style={{
+                    animation:
+                      accionActiva === "falta"
+                        ? "pulse 0.8s ease-in-out infinite"
+                        : "none",
+                  }}
+                  title={
+                    accionActiva === "falta"
+                      ? "Click en un jugador para anotar falta"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
+                >
+                  <svg
+                    className="w-10 h-10"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleAccionDrop(e, "amarilla")}
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(
+                      accionActiva === "amarilla" ? null : "amarilla"
+                    );
+                  }}
+                  className={`w-24 h-[74px] bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
+                    accionActiva === "amarilla"
+                      ? "ring-4 ring-yellow-300 scale-125 border-gray-800 shadow-2xl"
+                      : "border-transparent hover:border-gray-800 hover:scale-105"
+                  } ${
+                    accionActiva === "amarilla"
+                      ? "animate-[pulse_0.8s_ease-in-out_infinite]"
+                      : ""
+                  }`}
+                  style={{
+                    animation:
+                      accionActiva === "amarilla"
+                        ? "pulse 0.8s ease-in-out infinite"
+                        : "none",
+                  }}
+                  title={
+                    accionActiva === "amarilla"
+                      ? "Click en un jugador para tarjeta amarilla"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
+                >
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <rect
+                      x="6"
+                      y="4"
+                      width="12"
+                      height="16"
+                      rx="2"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                </div>
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleAccionDrop(e, "roja")}
+                  onClick={() => {
+                    setPosicionSeleccionada(null);
+                    setAccionActiva(accionActiva === "roja" ? null : "roja");
+                  }}
+                  className={`w-24 h-[74px] bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
+                    accionActiva === "roja"
+                      ? "ring-4 ring-red-300 scale-125 border-white shadow-2xl"
+                      : "border-transparent hover:border-white hover:scale-105"
+                  } ${
+                    accionActiva === "roja"
+                      ? "animate-[pulse_0.8s_ease-in-out_infinite]"
+                      : ""
+                  }`}
+                  style={{
+                    animation:
+                      accionActiva === "roja"
+                        ? "pulse 0.8s ease-in-out infinite"
+                        : "none",
+                  }}
+                  title={
+                    accionActiva === "roja"
+                      ? "Click en un jugador para tarjeta roja"
+                      : "Click para activar o arrastra jugador aquí"
+                  }
+                >
+                  <svg
+                    className="w-10 h-10"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <rect
+                      x="6"
+                      y="4"
+                      width="12"
+                      height="16"
+                      rx="2"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Jugadores Visitantes - Derecha (3 columnas) */}
-            <PanelJugadoresVisitantes
-              handleDropFueraPista={handleDropFueraPista}
-              handleDragOverFueraPista={handleDragOverFueraPista}
-              estadisticas={estadisticas}
-              accionActiva={accionActiva}
-              handleDragStart={handleDragStart}
-              ejecutarAccion={ejecutarAccion}
-              editandoDorsal={editandoDorsal}
-              setEditandoDorsal={setEditandoDorsal}
-              obtenerDorsalVisitante={obtenerDorsalVisitante}
-              jugadoresVisitantesActivos={jugadoresVisitantesActivos}
-              estadoPartido={estadoPartido}
-              toggleJugadorVisitante={toggleJugadorVisitante}
-              dorsalesVisitantes={dorsalesVisitantes}
-              actualizarDorsalVisitanteLegacy={actualizarDorsalVisitanteLegacy}
-            />
+            <div
+              className="flex-shrink-0 flex flex-col items-center"
+              onDrop={handleDropFueraPista}
+              onDragOver={handleDragOverFueraPista}
+            >
+              {/* Bolas de Staff Técnico visitante encima de jugadores - 1 fila */}
+              <div className="flex justify-center gap-2 mb-3">
+                {/* Entrenador */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-visitante-E",
+                      nombre: "Entrenador Visitante",
+                      numero_dorsal: "E",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-E",
+                          nombre: "Entrenador Visitante",
+                          numero_dorsal: "E",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Entrenador Visitante - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-visitante-E"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      E
+                    </div>
+                  ) : estadisticas["staff-visitante-E"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      E
+                    </div>
+                  ) : (
+                    "E"
+                  )}
+                </div>
+                {/* Delegado */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-visitante-D",
+                      nombre: "Delegado Visitante",
+                      numero_dorsal: "D",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-D",
+                          nombre: "Delegado Visitante",
+                          numero_dorsal: "D",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Delegado Visitante - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-visitante-D"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      D
+                    </div>
+                  ) : estadisticas["staff-visitante-D"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      D
+                    </div>
+                  ) : (
+                    "D"
+                  )}
+                </div>
+                {/* Auxiliar */}
+                <div
+                  draggable
+                  onDragStart={(e) =>
+                    handleDragStart(e, {
+                      id: "staff-visitante-A",
+                      nombre: "Auxiliar Visitante",
+                      numero_dorsal: "A",
+                    })
+                  }
+                  onDragEnd={(e) => {
+                    e.target.style.opacity = "1";
+                  }}
+                  onClick={() => {
+                    if (accionActiva) {
+                      ejecutarAccion(
+                        {
+                          id: "staff-visitante-A",
+                          nombre: "Auxiliar Visitante",
+                          numero_dorsal: "A",
+                        },
+                        accionActiva
+                      );
+                    }
+                  }}
+                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
+                    accionActiva
+                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                      : "cursor-grab active:cursor-grabbing"
+                  }`}
+                  title={
+                    accionActiva
+                      ? `Click para aplicar ${accionActiva}`
+                      : "Auxiliar Visitante - Arrastra para asignar tarjeta"
+                  }
+                >
+                  {estadisticas["staff-visitante-A"]?.rojas > 0 ? (
+                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                      A
+                    </div>
+                  ) : estadisticas["staff-visitante-A"]?.amarillas > 0 ? (
+                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                      A
+                    </div>
+                  ) : (
+                    "A"
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {/* Columna 1: números 1-4 */}
+                <div className="flex flex-col items-center gap-2">
+                  {[1, 2, 3, 4].map((numero) => {
+                    const dorsalMostrado = obtenerDorsalVisitante(numero);
+                    const jugadorId = `visitante-${numero}`;
+                    const stats = estadisticas[jugadorId];
+                    const tieneAmarilla = stats?.amarillas > 0;
+                    const tieneRoja = stats?.rojas > 0;
+                    const estaActivo = jugadoresVisitantesActivos[numero];
+                    const dorsalPersonalizado =
+                      dorsalesVisitantes[numero] !== undefined;
+
+                    // Ocultar jugadores desactivados después de iniciar partido
+                    if (!estaActivo && estadoPartido !== "configuracion") {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={numero}
+                        draggable={editandoDorsal !== numero && estaActivo}
+                        onDragStart={(e) => {
+                          if (editandoDorsal !== numero && estaActivo) {
+                            handleDragStart(e, {
+                              id: jugadorId,
+                              nombre: `Visitante ${dorsalMostrado}`,
+                              numero_dorsal: dorsalMostrado,
+                            });
+                          }
+                        }}
+                        onDragEnd={(e) => {
+                          e.target.style.opacity = "1";
+                        }}
+                        onClick={() => {
+                          if (
+                            accionActiva &&
+                            editandoDorsal !== numero &&
+                            estaActivo
+                          ) {
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
+                          } else if (!accionActiva && estaActivo) {
+                            setEditandoDorsal(numero);
+                          }
+                        }}
+                        className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold text-base shadow-lg transition-transform overflow-visible ${
+                          !estaActivo
+                            ? "bg-gray-400 border-gray-500 opacity-50"
+                            : dorsalPersonalizado
+                            ? "bg-gray-200 border-gray-400 text-gray-700"
+                            : "bg-white border-gray-400 text-gray-700"
+                        } ${
+                          editandoDorsal === numero
+                            ? "border-blue-500"
+                            : accionActiva && estaActivo
+                            ? "cursor-pointer hover:scale-125 hover:ring-4 hover:ring-orange-300 hover:border-orange-500"
+                            : estaActivo
+                            ? "hover:scale-110 hover:border-blue-500"
+                            : ""
+                        }`}
+                        style={{
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva && estaActivo
+                              ? "pointer"
+                              : estaActivo
+                              ? "grab"
+                              : "not-allowed",
+                        }}
+                        title={
+                          !estaActivo
+                            ? "Jugador desactivado"
+                            : editandoDorsal === numero
+                            ? `Editando dorsal ${numero}`
+                            : accionActiva
+                            ? `Click para aplicar ${accionActiva}`
+                            : `Visitante ${dorsalMostrado} - Click para editar, arrastra para tarjeta/falta`
+                        }
+                      >
+                        {/* Botón X/✓ para desactivar/activar jugador - solo en configuración */}
+                        {estadoPartido === "configuracion" &&
+                          editandoDorsal !== numero && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleJugadorVisitante(numero);
+                              }}
+                              className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-md z-10 transition-colors ${
+                                estaActivo
+                                  ? "bg-red-500 hover:bg-red-600 text-white"
+                                  : "bg-green-500 hover:bg-green-600 text-white"
+                              }`}
+                              title={
+                                estaActivo
+                                  ? "Desactivar jugador"
+                                  : "Activar jugador"
+                              }
+                            >
+                              {estaActivo ? "×" : "✓"}
+                            </button>
+                          )}
+                        {editandoDorsal === numero ? (
+                          <input
+                            type="text"
+                            defaultValue={dorsalMostrado}
+                            onBlur={(e) =>
+                              actualizarDorsalVisitante(numero, e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                actualizarDorsalVisitante(
+                                  numero,
+                                  e.target.value
+                                );
+                              }
+                              if (e.key === "Escape") {
+                                setEditandoDorsal(null);
+                              }
+                            }}
+                            autoFocus
+                            className="w-12 h-12 text-center rounded-full border-2 border-blue-500 text-gray-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            maxLength="3"
+                          />
+                        ) : tieneRoja ? (
+                          <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : tieneAmarilla ? (
+                          <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : (
+                          dorsalMostrado
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Columna 2: números 5-8 */}
+                <div className="flex flex-col items-center gap-2">
+                  {[5, 6, 7, 8].map((numero) => {
+                    const dorsalMostrado = obtenerDorsalVisitante(numero);
+                    const jugadorId = `visitante-${numero}`;
+                    const stats = estadisticas[jugadorId];
+                    const tieneAmarilla = stats?.amarillas > 0;
+                    const tieneRoja = stats?.rojas > 0;
+                    const estaActivo = jugadoresVisitantesActivos[numero];
+                    const dorsalPersonalizado =
+                      dorsalesVisitantes[numero] !== undefined;
+
+                    // Ocultar jugadores desactivados después de iniciar partido
+                    if (!estaActivo && estadoPartido !== "configuracion") {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={numero}
+                        draggable={editandoDorsal !== numero && estaActivo}
+                        onDragStart={(e) => {
+                          if (editandoDorsal !== numero && estaActivo) {
+                            handleDragStart(e, {
+                              id: jugadorId,
+                              nombre: `Visitante ${dorsalMostrado}`,
+                              numero_dorsal: dorsalMostrado,
+                            });
+                          }
+                        }}
+                        onDragEnd={(e) => {
+                          e.target.style.opacity = "1";
+                        }}
+                        onClick={() => {
+                          if (
+                            accionActiva &&
+                            editandoDorsal !== numero &&
+                            estaActivo
+                          ) {
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
+                          } else if (!accionActiva && estaActivo) {
+                            setEditandoDorsal(numero);
+                          }
+                        }}
+                        className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold text-base shadow-lg transition-transform overflow-visible ${
+                          !estaActivo
+                            ? "bg-gray-400 border-gray-500 opacity-50"
+                            : dorsalPersonalizado
+                            ? "bg-gray-200 border-gray-400 text-gray-700"
+                            : "bg-white border-gray-400 text-gray-700"
+                        } ${
+                          editandoDorsal === numero
+                            ? "border-blue-500"
+                            : accionActiva && estaActivo
+                            ? "cursor-pointer hover:scale-125 hover:ring-4 hover:ring-orange-300 hover:border-orange-500"
+                            : estaActivo
+                            ? "hover:scale-110 hover:border-blue-500"
+                            : ""
+                        }`}
+                        style={{
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva && estaActivo
+                              ? "pointer"
+                              : estaActivo
+                              ? "grab"
+                              : "not-allowed",
+                        }}
+                        title={
+                          !estaActivo
+                            ? "Jugador desactivado"
+                            : editandoDorsal === numero
+                            ? `Editando dorsal ${numero}`
+                            : accionActiva
+                            ? `Click para aplicar ${accionActiva}`
+                            : `Visitante ${dorsalMostrado} - Click para editar, arrastra para tarjeta/falta`
+                        }
+                      >
+                        {/* Botón X/✓ para desactivar/activar jugador - solo en configuración */}
+                        {estadoPartido === "configuracion" &&
+                          editandoDorsal !== numero && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleJugadorVisitante(numero);
+                              }}
+                              className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-md z-10 transition-colors ${
+                                estaActivo
+                                  ? "bg-red-500 hover:bg-red-600 text-white"
+                                  : "bg-green-500 hover:bg-green-600 text-white"
+                              }`}
+                              title={
+                                estaActivo
+                                  ? "Desactivar jugador"
+                                  : "Activar jugador"
+                              }
+                            >
+                              {estaActivo ? "×" : "✓"}
+                            </button>
+                          )}
+                        {editandoDorsal === numero ? (
+                          <input
+                            type="text"
+                            defaultValue={dorsalMostrado}
+                            onBlur={(e) =>
+                              actualizarDorsalVisitante(numero, e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                actualizarDorsalVisitante(
+                                  numero,
+                                  e.target.value
+                                );
+                              }
+                              if (e.key === "Escape") {
+                                setEditandoDorsal(null);
+                              }
+                            }}
+                            autoFocus
+                            className="w-12 h-12 text-center rounded-full border-2 border-blue-500 text-gray-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            maxLength="3"
+                          />
+                        ) : tieneRoja ? (
+                          <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : tieneAmarilla ? (
+                          <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : (
+                          dorsalMostrado
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Columna 3: números 9-12 */}
+                <div className="flex flex-col items-center gap-2">
+                  {[9, 10, 11, 12].map((numero) => {
+                    const dorsalMostrado = obtenerDorsalVisitante(numero);
+                    const jugadorId = `visitante-${numero}`;
+                    const stats = estadisticas[jugadorId];
+                    const tieneAmarilla = stats?.amarillas > 0;
+                    const tieneRoja = stats?.rojas > 0;
+                    const estaActivo = jugadoresVisitantesActivos[numero];
+                    const dorsalPersonalizado =
+                      dorsalesVisitantes[numero] !== undefined;
+
+                    // Ocultar jugadores desactivados después de iniciar partido
+                    if (!estaActivo && estadoPartido !== "configuracion") {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={numero}
+                        draggable={editandoDorsal !== numero && estaActivo}
+                        onDragStart={(e) => {
+                          if (editandoDorsal !== numero && estaActivo) {
+                            handleDragStart(e, {
+                              id: jugadorId,
+                              nombre: `Visitante ${dorsalMostrado}`,
+                              numero_dorsal: dorsalMostrado,
+                            });
+                          }
+                        }}
+                        onDragEnd={(e) => {
+                          e.target.style.opacity = "1";
+                        }}
+                        onClick={() => {
+                          if (
+                            accionActiva &&
+                            editandoDorsal !== numero &&
+                            estaActivo
+                          ) {
+                            ejecutarAccion(
+                              {
+                                id: jugadorId,
+                                nombre: `Visitante ${dorsalMostrado}`,
+                                numero_dorsal: dorsalMostrado,
+                              },
+                              accionActiva
+                            );
+                          } else if (!accionActiva && estaActivo) {
+                            setEditandoDorsal(numero);
+                          }
+                        }}
+                        className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center font-bold text-base shadow-lg transition-transform overflow-visible ${
+                          !estaActivo
+                            ? "bg-gray-400 border-gray-500 opacity-50"
+                            : dorsalPersonalizado
+                            ? "bg-gray-200 border-gray-400 text-gray-700"
+                            : "bg-white border-gray-400 text-gray-700"
+                        } ${
+                          editandoDorsal === numero
+                            ? "border-blue-500"
+                            : accionActiva && estaActivo
+                            ? "cursor-pointer hover:scale-125 hover:ring-4 hover:ring-orange-300 hover:border-orange-500"
+                            : estaActivo
+                            ? "hover:scale-110 hover:border-blue-500"
+                            : ""
+                        }`}
+                        style={{
+                          cursor:
+                            editandoDorsal === numero
+                              ? "text"
+                              : accionActiva && estaActivo
+                              ? "pointer"
+                              : estaActivo
+                              ? "grab"
+                              : "not-allowed",
+                        }}
+                        title={
+                          !estaActivo
+                            ? "Jugador desactivado"
+                            : editandoDorsal === numero
+                            ? `Editando dorsal ${numero}`
+                            : accionActiva
+                            ? `Click para aplicar ${accionActiva}`
+                            : `Visitante ${dorsalMostrado} - Click para editar, arrastra para tarjeta/falta`
+                        }
+                      >
+                        {/* Botón X/✓ para desactivar/activar jugador - solo en configuración */}
+                        {estadoPartido === "configuracion" &&
+                          editandoDorsal !== numero && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleJugadorVisitante(numero);
+                              }}
+                              className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-md z-10 transition-colors ${
+                                estaActivo
+                                  ? "bg-red-500 hover:bg-red-600 text-white"
+                                  : "bg-green-500 hover:bg-green-600 text-white"
+                              }`}
+                              title={
+                                estaActivo
+                                  ? "Desactivar jugador"
+                                  : "Activar jugador"
+                              }
+                            >
+                              {estaActivo ? "×" : "✓"}
+                            </button>
+                          )}
+                        {editandoDorsal === numero ? (
+                          <input
+                            type="text"
+                            defaultValue={dorsalMostrado}
+                            onBlur={(e) =>
+                              actualizarDorsalVisitante(numero, e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                actualizarDorsalVisitante(
+                                  numero,
+                                  e.target.value
+                                );
+                              }
+                              if (e.key === "Escape") {
+                                setEditandoDorsal(null);
+                              }
+                            }}
+                            autoFocus
+                            className="w-12 h-12 text-center rounded-full border-2 border-blue-500 text-gray-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            maxLength="3"
+                          />
+                        ) : tieneRoja ? (
+                          <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : tieneAmarilla ? (
+                          <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                            {dorsalMostrado}
+                          </div>
+                        ) : (
+                          dorsalMostrado
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Lista de jugadores con minutos jugados */}
-        <TablaMinutosJugados
-          jugadores={jugadores}
-          estadisticas={estadisticas}
-          isJugadorAsignado={isJugadorAsignado}
-        />
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <h3 className="text-lg font-bold text-gray-700 mb-3">
+            Minutos Jugados
+          </h3>
+          <div className="grid grid-cols-6 gap-2">
+            {jugadores
+              .sort((a, b) => {
+                const minutosA = estadisticas[a.id]?.minutos || 0;
+                const minutosB = estadisticas[b.id]?.minutos || 0;
+                return minutosB - minutosA; // Mayor a menor
+              })
+              .map((jugador) => {
+                const stats = estadisticas[jugador.id];
+                const segundos = stats?.minutos || 0;
+                const tiempoFormateado = formatearTiempo(segundos);
+                const enPista = isJugadorAsignado(jugador.id);
+                const tieneAmarilla = stats?.amarillas > 0;
+                const tieneRoja = stats?.rojas > 0;
+                const numGoles = stats?.goles || 0;
 
-        {/* Botones de Utilidades */}
-        <BotonesUtilidades
-          partidoId={partidoId}
-          partidoInfo={partidoInfo}
-          finalizarPartidoExcepcional={finalizarPartidoExcepcional}
-          mostrarDatosLocalStorage={mostrarDatosLocalStorage}
-          setModalVolverDashboard={setModalVolverDashboard}
-          navigate={navigate}
-        />
+                return (
+                  <div
+                    key={jugador.id}
+                    className={`flex items-stretch p-2 rounded-lg border-2 gap-2 ${
+                      enPista
+                        ? "bg-green-50 border-green-500"
+                        : "bg-gray-50 border-gray-300"
+                    }`}
+                  >
+                    {/* Columna 1: Dorsal/Alias y Minutos */}
+                    <div className="flex flex-col justify-between flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-blue-600 text-base">
+                          {jugador.numero_dorsal}
+                        </span>
+                        <span className="text-gray-700 text-xs truncate max-w-[45px]">
+                          {jugador.alias || jugador.nombre}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <span className="font-bold text-gray-800 text-base font-mono">
+                          {tiempoFormateado}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Columna 2: Balón con goles (ocupa alto completo) */}
+                    {numGoles > 0 && (
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-8 h-8 bg-white rounded-full border-2 border-gray-800 flex items-center justify-center">
+                          <span className="text-sm font-bold text-gray-800 relative z-10">
+                            {numGoles}
+                          </span>
+                          {/* Patrón de balón simplificado */}
+                          <svg
+                            className="absolute inset-0 w-full h-full"
+                            viewBox="0 0 20 20"
+                          >
+                            <circle
+                              cx="10"
+                              cy="10"
+                              r="9"
+                              fill="none"
+                              stroke="#000"
+                              strokeWidth="0.5"
+                            />
+                            <path
+                              d="M10 2 L11 6 L10 10 L9 6 Z"
+                              fill="#000"
+                              fillOpacity="0.15"
+                            />
+                            <path
+                              d="M18 10 L14 11 L10 10 L14 9 Z"
+                              fill="#000"
+                              fillOpacity="0.15"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Columna 3: Tarjetas (amarilla arriba, roja abajo) */}
+                    <div className="flex flex-col justify-between">
+                      <div className="h-1/2 flex items-start">
+                        {tieneAmarilla && (
+                          <div className="w-4 h-5 bg-yellow-400 rounded-sm border border-yellow-600"></div>
+                        )}
+                      </div>
+                      <div className="h-1/2 flex items-end">
+                        {tieneRoja && (
+                          <div className="w-4 h-5 bg-red-500 rounded-sm border border-red-700"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Card de Botones de Acción */}
+        {partidoId && partidoInfo && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-4">
+            <div className="flex flex-wrap gap-3 justify-start items-center">
+              {/* Botón Finalizar Excepcional - Rojo */}
+              <button
+                onClick={finalizarPartidoExcepcional}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+                title="Finalizar partido de forma excepcional (requiere motivo)"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                Finalizar Partido (Excepcional)
+              </button>
+
+              {/* Botón Ver Datos */}
+              <button
+                onClick={mostrarDatosLocalStorage}
+                className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+                title="Ver datos guardados en localStorage"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Ver Datos
+              </button>
+
+              {/* Botón Volver */}
+              <button
+                onClick={() => setModalVolverDashboard(true)}
+                className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+                title="Volver al dashboard"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Volver
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Navegación para usuarios sin partido */}
+        {!partidoId && (
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2 mb-4"
+            title="Volver al dashboard"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Volver
+          </button>
+        )}
 
         {/* Modal de confirmación con countdown de 5 segundos */}
-        <ModalConfirmacionCountdown
-          confirmacionPendiente={confirmacionPendiente}
-          tiempoRestanteConfirmacion={tiempoRestanteConfirmacion}
-          cancelarConfirmacion={cancelarConfirmacion}
-          confirmarAccion={confirmarAccion}
-        />
+        {confirmacionPendiente && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 animate-slideUp">
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-yellow-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                </div>
 
-        {/* Diálogos de inicialización y validación */}
-        <DialogosPartido
-          mostrarDialogoValidacionJugadores={mostrarDialogoValidacionJugadores}
-          setMostrarDialogoValidacionJugadores={
-            setMostrarDialogoValidacionJugadores
-          }
-          jugadoresEnPistaCount={jugadoresEnPistaCount}
-          mostrarDialogoIniciarPartido={mostrarDialogoIniciarPartido}
-          setMostrarDialogoIniciarPartido={setMostrarDialogoIniciarPartido}
-          setEstadoPartido={setEstadoPartido}
-          setPeriodoActual={setPeriodoActual}
-          setCronometroActivo={setCronometroActivo}
-          mostrarDialogoLocalStorage={mostrarDialogoLocalStorage}
-          setMostrarDialogoLocalStorage={setMostrarDialogoLocalStorage}
-          cargarDesdeLocalStorage={cargarDesdeLocalStorage}
-          limpiarLocalStoragePartidoLegacy={limpiarLocalStoragePartidoLegacy}
-          partidoIdParam={partidoIdParam}
-          mostrarDialogoResetPartido={mostrarDialogoResetPartido}
-          setMostrarDialogoResetPartido={setMostrarDialogoResetPartido}
-          resetearPartido={resetearPartido}
-          navigate={navigate}
-        />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Confirmar acción
+                </h3>
+
+                <p className="text-gray-600 mb-6">
+                  {confirmacionPendiente.tipo === "toggle_cronometro" &&
+                    (confirmacionPendiente.data.nuevoEstado
+                      ? "¿Iniciar cronómetro?"
+                      : "¿Detener cronómetro?")}
+                  {confirmacionPendiente.tipo === "incrementar_gol_local" &&
+                    "¿Añadir gol al equipo local?"}
+                  {confirmacionPendiente.tipo === "decrementar_gol_local" &&
+                    "¿Eliminar gol al equipo local?"}
+                  {confirmacionPendiente.tipo === "incrementar_gol_visitante" &&
+                    "¿Añadir gol al equipo visitante?"}
+                  {confirmacionPendiente.tipo === "decrementar_gol_visitante" &&
+                    "¿Eliminar gol al equipo visitante?"}
+                  {confirmacionPendiente.tipo === "resetear_cronometro" &&
+                    "¿Resetear el cronómetro a 0?"}
+                </p>
+
+                {/* Countdown visual */}
+                <div className="mb-6">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <svg className="transform -rotate-90 w-20 h-20">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                        fill="none"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="#3b82f6"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={226.19}
+                        strokeDashoffset={
+                          226.19 * (1 - tiempoRestanteConfirmacion / 5)
+                        }
+                        strokeLinecap="round"
+                        className="transition-all duration-100"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {Math.ceil(tiempoRestanteConfirmacion)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Se cancelará automáticamente
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelarConfirmacion}
+                    className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarAccion}
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo: Cargar datos desde localStorage */}
+        {/* Diálogo: Validación de Jugadores */}
+        {mostrarDialogoValidacionJugadores && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ⚠️ Configuración Incompleta
+                </h3>
+              </div>
+              <p className="text-gray-700 text-center mb-4">
+                Debes colocar{" "}
+                <strong className="text-red-600">
+                  exactamente 5 jugadores
+                </strong>{" "}
+                en la pista para iniciar el partido.
+              </p>
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-red-800 font-medium">
+                    Jugadores en pista:
+                  </span>
+                  <span className="text-2xl font-bold text-red-600">
+                    {jugadoresEnPistaCount} / 5
+                  </span>
+                </div>
+                <p className="text-xs text-red-700 mt-2">
+                  {jugadoresEnPistaCount < 5
+                    ? `Faltan ${5 - jugadoresEnPistaCount} jugador${
+                        5 - jugadoresEnPistaCount !== 1 ? "es" : ""
+                      }`
+                    : `Sobran ${jugadoresEnPistaCount - 5} jugador${
+                        jugadoresEnPistaCount - 5 !== 1 ? "es" : ""
+                      }`}
+                </p>
+              </div>
+              <button
+                onClick={() => setMostrarDialogoValidacionJugadores(false)}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo: Iniciar Partido */}
+        {mostrarDialogoIniciarPartido && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ¿Iniciar Partido?
+                </h3>
+              </div>
+              <p className="text-gray-600 text-center mb-6">
+                Una vez iniciado, se activará el cronómetro y podrás registrar
+                acciones durante el partido.
+              </p>
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-6">
+                <p className="text-sm text-blue-800">
+                  <strong>Nota:</strong> Asegúrate de tener configurados todos
+                  los jugadores antes de comenzar.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setMostrarDialogoIniciarPartido(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setMostrarDialogoIniciarPartido(false);
+                    setEstadoPartido("primera_parte");
+                    setPeriodoActual(1);
+                    setCronometroActivo(true);
+                  }}
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Iniciar Partido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mostrarDialogoLocalStorage && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-xl font-bold mb-4 text-blue-600">
+                Datos Encontrados en Caché
+              </h3>
+              <p className="text-gray-700 mb-6">
+                Se han encontrado datos guardados localmente para este partido.
+                ¿Deseas cargar estos datos y continuar donde lo dejaste?
+              </p>
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Nota:</strong> Si eliges "No", se iniciarán datos
+                  nuevos y los datos guardados se borrarán.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    // Primero limpiar localStorage
+                    limpiarLocalStoragePartido();
+                    // Cerrar el diálogo
+                    setMostrarDialogoLocalStorage(false);
+                    // Generar un nuevo ID de partido para evitar conflictos
+                    const nuevoPartidoId =
+                      partidoIdParam || `partido_${Date.now()}`;
+                    if (!partidoIdParam) {
+                      localStorage.setItem("partidoActualId", nuevoPartidoId);
+                    }
+                    // Recargar página para empezar limpio
+                    window.location.reload();
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  No, Empezar Nuevo
+                </button>
+                <button
+                  onClick={cargarDesdeLocalStorage}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Sí, Cargar Datos
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo: Resetear partido con datos en BD */}
+        {mostrarDialogoResetPartido && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-xl font-bold mb-4 text-red-600">
+                ⚠️ Partido Ya Finalizado
+              </h3>
+              <p className="text-gray-700 mb-6">
+                Este partido ya tiene datos guardados en la base de datos (fue
+                finalizado anteriormente). ¿Deseas resetear el partido y empezar
+                de nuevo?
+              </p>
+              <div className="bg-red-50 border-l-4 border-red-400 p-3 mb-4">
+                <p className="text-sm text-red-800">
+                  <strong>Advertencia:</strong> Esta acción no borrará los datos
+                  de la BD, pero permitirá configurar un nuevo partido con este
+                  ID.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setMostrarDialogoResetPartido(false);
+                    navigate("/dashboard");
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={resetearPartido}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Sí, Resetear
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Visor de datos de localStorage */}
-        <VisorLocalStorage
-          visible={mostrarVisorLocalStorage}
-          partidoId={partidoId}
-          datosLocalStoragePartido={datosLocalStoragePartido}
-          onClose={() => setMostrarVisorLocalStorage(false)}
-          onCopiar={() => {
-            navigator.clipboard.writeText(
-              JSON.stringify(datosLocalStoragePartido, null, 2)
-            );
-            setModalAlerta({
-              visible: true,
-              titulo: "Copiado",
-              mensaje: "Datos copiados al portapapeles",
-              tipo: "success",
-            });
-          }}
-        />
+        {mostrarVisorLocalStorage && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-blue-600">
+                  Datos en LocalStorage - Partido {partidoId}
+                </h3>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
+                {datosLocalStoragePartido ? (
+                  <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto text-xs">
+                    {JSON.stringify(datosLocalStoragePartido, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">
+                    No hay datos guardados para este partido
+                  </p>
+                )}
+              </div>
+              <div className="p-6 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      JSON.stringify(datosLocalStoragePartido, null, 2)
+                    );
+                    setModalAlerta({
+                      visible: true,
+                      titulo: "Copiado",
+                      mensaje: "Datos copiados al portapapeles",
+                      tipo: "success",
+                    });
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  disabled={!datosLocalStoragePartido}
+                >
+                  Copiar al Portapapeles
+                </button>
+                <button
+                  onClick={() => setMostrarVisorLocalStorage(false)}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Tiempo Muerto */}
+        {modalTiempoMuerto.visible && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                  <span className="text-4xl">⏸️</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ¿Solicitar Tiempo Muerto?
+                </h3>
+              </div>
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Equipo:</strong>{" "}
+                    {modalTiempoMuerto.equipo === "local"
+                      ? "LA CÚPULA"
+                      : partidoInfo?.rival || "VISITANTE"}
+                  </p>
+                  <p>
+                    <strong>Parte:</strong> {periodoActual === 1 ? "1ª" : "2ª"}
+                  </p>
+                  <p>
+                    <strong>Duración:</strong> 1 minuto
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 text-center mb-6">
+                El cronómetro del partido continuará corriendo durante el tiempo
+                muerto.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() =>
+                    setModalTiempoMuerto({ visible: false, equipo: null })
+                  }
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarTiempoMuerto}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Finalizar Primera Parte */}
+        {modalFinalizarPrimera && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
+                  <span className="text-4xl">🏁</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ¿Finalizar Primera Parte?
+                </h3>
+              </div>
+              <div className="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Resultado parcial:</strong> {golesLocal} -{" "}
+                    {golesVisitante}
+                  </p>
+                  <p>
+                    <strong>Faltas:</strong> {faltasLocal} - {faltasVisitante}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 text-center mb-6">
+                Se resetearán las faltas del primer período y podrás iniciar la
+                segunda parte cuando estés listo.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setModalFinalizarPrimera(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarFinalizarPrimera}
+                  className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                >
+                  Finalizar 1ª Parte
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Iniciar Segunda Parte */}
+        {modalIniciarSegunda && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-purple-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ¿Iniciar Segunda Parte?
+                </h3>
+              </div>
+              <div className="bg-purple-50 border-l-4 border-purple-400 p-4 mb-6">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Resultado:</strong> {golesLocal} - {golesVisitante}
+                  </p>
+                  <p>
+                    <strong>Faltas acumuladas:</strong> {faltasLocal} -{" "}
+                    {faltasVisitante}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 text-center mb-6">
+                Se reactivará el cronómetro y comenzará el segundo período del
+                partido.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setModalIniciarSegunda(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarIniciarSegunda}
+                  className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Iniciar 2ª Parte
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Finalizar Partido (sin estadísticas) */}
+        {modalFinalizarPartido && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Partido sin Estadísticas
+                </h3>
+              </div>
+              <p className="text-gray-600 text-center mb-6">
+                No hay acciones registradas. ¿Estás seguro de que quieres
+                finalizar el partido sin estadísticas?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setModalFinalizarPartido(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setModalFinalizarPartido(false);
+                    ejecutarFinalizacionPartido();
+                  }}
+                  className="flex-1 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+                >
+                  Finalizar Igualmente
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Finalizar Excepcional (con motivo) */}
+        {modalFinalizarExcepcional.visible && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Finalización Excepcional
+                </h3>
+              </div>
+              <p className="text-gray-600 text-sm mb-4">
+                ¿Por qué estás finalizando el partido de forma excepcional?
+              </p>
+              <textarea
+                value={modalFinalizarExcepcional.motivo}
+                onChange={(e) =>
+                  setModalFinalizarExcepcional({
+                    ...modalFinalizarExcepcional,
+                    motivo: e.target.value,
+                  })
+                }
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent mb-4"
+                rows="4"
+                placeholder="Escribe el motivo de la finalización excepcional..."
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() =>
+                    setModalFinalizarExcepcional({ visible: false, motivo: "" })
+                  }
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarFinalizarExcepcional}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Finalizar Partido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal: ALERTA JUGADORES FALTANTES (grande y llamativo) */}
-        <ModalAlertaJugadoresFaltantes
-          visible={alertaJugadoresFaltantes}
-          onClose={() => setAlertaJugadoresFaltantes(false)}
-        />
+        {alertaJugadoresFaltantes && (
+          <div className="fixed inset-0 bg-red-600 bg-opacity-95 flex items-center justify-center z-[60] p-4 animate-pulse">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-12 border-8 border-red-600">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-32 h-32 bg-red-100 rounded-full mb-6 animate-bounce">
+                  <svg
+                    className="w-20 h-20 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={3}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-6xl font-black text-red-600 mb-6 uppercase tracking-wider">
+                  ¡CUIDADOOOOOO!
+                </h3>
+                <p className="text-4xl font-bold text-gray-800 mb-8">
+                  TE FALTAN JUGADORES EN PISTA
+                </p>
+                <div className="bg-red-50 border-4 border-red-300 rounded-xl p-6 mb-8">
+                  <p className="text-2xl font-semibold text-red-800">
+                    ⚠️ Debes tener 5 jugadores en pista en todo momento
+                  </p>
+                </div>
+                <button
+                  onClick={() => setAlertaJugadoresFaltantes(false)}
+                  className="px-12 py-6 bg-red-600 text-white text-2xl font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg"
+                >
+                  ¡ENTENDIDO!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal: Alerta General (success, error, info, warning) */}
-        <ModalAlertaGeneral
-          modalAlerta={modalAlerta}
-          setModalAlerta={setModalAlerta}
-        />
+        {modalAlerta.visible && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div
+                  className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                    modalAlerta.tipo === "success"
+                      ? "bg-green-100"
+                      : modalAlerta.tipo === "error"
+                      ? "bg-red-100"
+                      : modalAlerta.tipo === "warning"
+                      ? "bg-yellow-100"
+                      : "bg-blue-100"
+                  }`}
+                >
+                  {modalAlerta.tipo === "success" && (
+                    <svg
+                      className="w-8 h-8 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                  {modalAlerta.tipo === "error" && (
+                    <svg
+                      className="w-8 h-8 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  )}
+                  {modalAlerta.tipo === "warning" && (
+                    <svg
+                      className="w-8 h-8 text-yellow-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  )}
+                  {modalAlerta.tipo === "info" && (
+                    <svg
+                      className="w-8 h-8 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  {modalAlerta.titulo}
+                </h3>
+              </div>
+              <p className="text-gray-600 text-center mb-6 whitespace-pre-line">
+                {modalAlerta.mensaje}
+              </p>
+              {modalAlerta.tipo === "warning" &&
+              (modalAlerta.onConfirm || modalAlerta.onCancel) ? (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      if (modalAlerta.onCancel) modalAlerta.onCancel();
+                      setModalAlerta({
+                        visible: false,
+                        titulo: "",
+                        mensaje: "",
+                        tipo: "info",
+                      });
+                    }}
+                    className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (modalAlerta.onConfirm) modalAlerta.onConfirm();
+                      setModalAlerta({
+                        visible: false,
+                        titulo: "",
+                        mensaje: "",
+                        tipo: "info",
+                      });
+                    }}
+                    className="flex-1 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (modalAlerta.onConfirm) modalAlerta.onConfirm();
+                    setModalAlerta({
+                      visible: false,
+                      titulo: "",
+                      mensaje: "",
+                      tipo: "info",
+                    });
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg hover:opacity-90 transition-colors font-medium text-white ${
+                    modalAlerta.tipo === "success"
+                      ? "bg-green-600"
+                      : modalAlerta.tipo === "error"
+                      ? "bg-red-600"
+                      : "bg-blue-600"
+                  }`}
+                >
+                  Entendido
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-        {/* Modales de Gestión del Partido */}
-        <ModalesPartido
-          modalTiempoMuerto={modalTiempoMuerto}
-          setModalTiempoMuerto={setModalTiempoMuerto}
-          confirmarTiempoMuerto={confirmarTiempoMuerto}
-          periodoActual={periodoActual}
-          partidoInfo={partidoInfo}
-          modalFinalizarPrimera={modalFinalizarPrimera}
-          setModalFinalizarPrimera={setModalFinalizarPrimera}
-          confirmarFinalizarPrimera={confirmarFinalizarPrimera}
-          golesLocal={golesLocal}
-          golesVisitante={golesVisitante}
-          faltasLocal={faltasLocal}
-          faltasVisitante={faltasVisitante}
-          modalIniciarSegunda={modalIniciarSegunda}
-          setModalIniciarSegunda={setModalIniciarSegunda}
-          confirmarIniciarSegunda={confirmarIniciarSegunda}
-          modalFinalizarPartido={modalFinalizarPartido}
-          setModalFinalizarPartido={setModalFinalizarPartido}
-          ejecutarFinalizacionPartido={ejecutarFinalizacionPartido}
-          modalFinalizarExcepcional={modalFinalizarExcepcional}
-          setModalFinalizarExcepcional={setModalFinalizarExcepcional}
-          confirmarFinalizarExcepcional={confirmarFinalizarExcepcional}
-          modalVolverDashboard={modalVolverDashboard}
-          setModalVolverDashboard={setModalVolverDashboard}
-          navigate={navigate}
-        />
+        {/* Modal: Confirmación Volver al Dashboard */}
+        {modalVolverDashboard && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  ¿Volver al Dashboard?
+                </h3>
+              </div>
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <p className="text-sm text-yellow-800">
+                  <strong>Advertencia:</strong> Si vuelves al dashboard sin
+                  finalizar el partido, los datos se mantendrán guardados en el
+                  navegador y podrás continuar más tarde.
+                </p>
+              </div>
+              <p className="text-gray-600 text-center mb-6">
+                Todos los datos del partido están guardados localmente. Puedes
+                regresar en cualquier momento para continuar donde lo dejaste.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setModalVolverDashboard(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setModalVolverDashboard(false);
+                    navigate("/dashboard");
+                  }}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Sí, Volver
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
