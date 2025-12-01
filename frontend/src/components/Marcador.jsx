@@ -22,6 +22,17 @@ function Marcador({
   jugadoresLocal = [],
   jugadoresAsignados = {},
   estadisticas = {},
+  onIniciarPartido,
+  onFinalizarPrimeraParte,
+  onIniciarSegundaParte,
+  onFinalizarPartido,
+  onTiempoMuertoLocal,
+  onTiempoMuertoVisitante,
+  tiemposMuertosLocal = { primera: false, segunda: false },
+  tiemposMuertosVisitante = { primera: false, segunda: false },
+  periodoActual = 1,
+  tiempoMuertoActivo = false,
+  contadorTiempoMuerto = null,
 }) {
   const [minutos, setMinutos] = useState(0);
   const [segundos, setSegundos] = useState(0);
@@ -30,6 +41,9 @@ function Marcador({
   const [flashGolVisitante, setFlashGolVisitante] = useState(false);
   const [flashFaltasLocal, setFlashFaltasLocal] = useState(false);
   const [flashFaltasVisitante, setFlashFaltasVisitante] = useState(false);
+
+  // Estados para tiempo muerto
+  const [segundosTiempoMuerto, setSegundosTiempoMuerto] = useState(0);
 
   // Sincronizar cronometroActivo del padre con el estado local
   useEffect(() => {
@@ -56,6 +70,25 @@ function Marcador({
       setSegundos(Math.floor(tiempoCronometro % 60));
     }
   }, [cronometroActivo, tiempoCronometro, timestampInicioCronometro]);
+
+  // Actualizar contador de tiempo muerto
+  useEffect(() => {
+    if (tiempoMuertoActivo && contadorTiempoMuerto) {
+      const intervalo = setInterval(() => {
+        const tiempoTranscurrido =
+          (Date.now() - contadorTiempoMuerto.timestampInicio) / 1000;
+        const segundosRestantes = Math.max(
+          0,
+          60 - Math.floor(tiempoTranscurrido)
+        );
+        setSegundosTiempoMuerto(segundosRestantes);
+      }, 100);
+
+      return () => clearInterval(intervalo);
+    } else {
+      setSegundosTiempoMuerto(0);
+    }
+  }, [tiempoMuertoActivo, contadorTiempoMuerto]);
 
   // Efecto para detectar animaciones de gol/falta
   useEffect(() => {
@@ -127,6 +160,24 @@ function Marcador({
         {/* Sección LOCAL */}
         <div className="flex flex-col items-center gap-3 min-w-0">
           <div className="flex items-center gap-3">
+            {/* Botón Tiempo Muerto LOCAL - a la izquierda del marcador */}
+            {estadoPartido !== "configuracion" &&
+              estadoPartido !== "finalizado" &&
+              !tiemposMuertosLocal[
+                periodoActual === 1 ? "primera" : "segunda"
+              ] && (
+                <button
+                  onClick={onTiempoMuertoLocal}
+                  disabled={tiempoMuertoActivo}
+                  className="bg-white hover:bg-gray-100 text-blue-600 font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  title={`Tiempo Muerto ${
+                    periodoActual === 1 ? "1ª" : "2ª"
+                  } Parte`}
+                >
+                  ⏸️
+                </button>
+              )}
+
             {/* Marcador más grande */}
             <div
               className={`bg-black text-yellow-400 text-8xl font-bold py-6 px-6 rounded-xl border-3 border-gray-700 w-[150px] h-[120px] flex items-center justify-center transition-all duration-300 tabular-nums flex-shrink-0 ${
@@ -142,18 +193,23 @@ function Marcador({
               {String(golesLocal).padStart(2, "0")}
             </div>
           </div>
+          <img
+            src="/img/logocupula.jpg"
+            alt={equipoLocal}
+            className="w-14 h-14 rounded-full object-cover"
+          />
           <div className="flex justify-center gap-2">
             <button
               onClick={onIncrementarGolLocal}
               disabled={estadoPartido === "configuracion"}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hidden bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               +
             </button>
             <button
               onClick={onDecrementarGolLocal}
               disabled={estadoPartido === "configuracion" || golesLocal === 0}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hidden bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               -
             </button>
@@ -189,15 +245,25 @@ function Marcador({
 
               {/* Cronómetro LED */}
               <div
-                className="bg-black text-red-500 text-8xl font-bold px-6 py-5 rounded-2xl border-4 border-gray-800 w-[420px] h-[120px] flex items-center justify-center tabular-nums"
+                className={`${
+                  tiempoMuertoActivo
+                    ? "bg-white text-black"
+                    : "bg-black text-red-500"
+                } text-8xl font-bold px-6 py-5 rounded-2xl border-4 border-gray-800 w-[420px] h-[120px] flex items-center justify-center tabular-nums transition-colors duration-300`}
                 style={{
                   fontFamily: "'Orbitron', monospace",
                   letterSpacing: "0.12em",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {String(minutos).padStart(2, "0")}:
-                {String(segundos).padStart(2, "0")}
+                {tiempoMuertoActivo ? (
+                  <>00:{String(segundosTiempoMuerto).padStart(2, "0")}</>
+                ) : (
+                  <>
+                    {String(minutos).padStart(2, "0")}:
+                    {String(segundos).padStart(2, "0")}
+                  </>
+                )}
               </div>
 
               {/* Faltas VISITANTE */}
@@ -225,22 +291,71 @@ function Marcador({
 
             {/* Botones de control */}
             <div className="flex justify-center gap-2">
-              <button
-                onClick={iniciarPausar}
-                className={`${
-                  corriendo
-                    ? "bg-yellow-500 hover:bg-yellow-600"
-                    : "bg-green-500 hover:bg-green-600"
-                } text-white font-semibold px-6 py-1.5 rounded text-2xl w-40 h-14 shadow-lg transition-all`}
-              >
-                {corriendo ? "⏸ Pausar" : "▶ Iniciar"}
-              </button>
-              <button
-                onClick={reiniciar}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-1.5 rounded text-2xl w-40 h-14 shadow-lg transition-all"
-              >
-                ⟲ Reset
-              </button>
+              {estadoPartido === "configuracion" ? (
+                <button
+                  onClick={onIniciarPartido}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-3 rounded-lg text-2xl shadow-xl transition-all transform hover:scale-105 flex items-center gap-3"
+                >
+                  <svg
+                    className="w-8 h-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Iniciar Partido
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={iniciarPausar}
+                    className={`${
+                      corriendo
+                        ? "bg-yellow-500 hover:bg-yellow-600"
+                        : "bg-green-500 hover:bg-green-600"
+                    } text-white font-semibold px-6 py-1.5 rounded text-xl w-36 h-14 shadow-lg transition-all`}
+                  >
+                    {corriendo ? "⏸ Pausar" : "▶ Iniciar"}
+                  </button>
+                  {estadoPartido === "primera_parte" &&
+                    onFinalizarPrimeraParte && (
+                      <button
+                        onClick={onFinalizarPrimeraParte}
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-1.5 rounded text-xl w-60 h-14 shadow-lg transition-all whitespace-nowrap"
+                      >
+                        🏁 Finalizar 1ª Parte
+                      </button>
+                    )}
+                  {estadoPartido === "descanso" && onIniciarSegundaParte && (
+                    <button
+                      onClick={onIniciarSegundaParte}
+                      className="bg-purple-500 hover:bg-purple-600 text-white font-semibold px-6 py-1.5 rounded text-xl w-60 h-14 shadow-lg transition-all whitespace-nowrap"
+                    >
+                      ▶ Iniciar 2ª Parte
+                    </button>
+                  )}
+                  {estadoPartido === "segunda_parte" && onFinalizarPartido && (
+                    <button
+                      onClick={onFinalizarPartido}
+                      className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-1.5 rounded text-xl w-60 h-14 shadow-lg transition-all whitespace-nowrap"
+                    >
+                      ✅ Finalizar Partido
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -262,12 +377,33 @@ function Marcador({
             >
               {String(golesVisitante).padStart(2, "0")}
             </div>
+
+            {/* Botón Tiempo Muerto VISITANTE - a la derecha del marcador */}
+            {estadoPartido !== "configuracion" &&
+              estadoPartido !== "finalizado" &&
+              !tiemposMuertosVisitante[
+                periodoActual === 1 ? "primera" : "segunda"
+              ] && (
+                <button
+                  onClick={onTiempoMuertoVisitante}
+                  disabled={tiempoMuertoActivo}
+                  className="bg-white hover:bg-gray-100 text-blue-600 font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                  title={`Tiempo Muerto ${
+                    periodoActual === 1 ? "1ª" : "2ª"
+                  } Parte`}
+                >
+                  ⏸️
+                </button>
+              )}
           </div>
+          <h3 className="text-white text-2xl font-bold flex items-center justify-center">
+            {equipoVisitante}
+          </h3>
           <div className="flex justify-center gap-2">
             <button
               onClick={onIncrementarGolVisitante}
               disabled={estadoPartido === "configuracion"}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hidden bg-green-600 hover:bg-green-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               +
             </button>
@@ -276,7 +412,7 @@ function Marcador({
               disabled={
                 estadoPartido === "configuracion" || golesVisitante === 0
               }
-              className="bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hidden bg-red-600 hover:bg-red-700 text-white font-bold text-2xl w-14 h-14 rounded-md shadow-lg transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               -
             </button>
