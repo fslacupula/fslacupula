@@ -26,6 +26,7 @@ function Marcador({
   onFinalizarPrimeraParte,
   onIniciarSegundaParte,
   onFinalizarPartido,
+  finalizandoPartido = false,
   onTiempoMuertoLocal,
   onTiempoMuertoVisitante,
   tiemposMuertosLocal = { primera: false, segunda: false },
@@ -349,9 +350,16 @@ function Marcador({
                   {estadoPartido === "segunda_parte" && onFinalizarPartido && (
                     <button
                       onClick={onFinalizarPartido}
-                      className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-1.5 rounded text-xl w-60 h-14 shadow-lg transition-all whitespace-nowrap"
+                      disabled={finalizandoPartido}
+                      className={`font-semibold px-6 py-1.5 rounded text-xl w-60 h-14 shadow-lg transition-all whitespace-nowrap ${
+                        finalizandoPartido
+                          ? "bg-gray-400 cursor-not-allowed opacity-60"
+                          : "bg-green-600 hover:bg-green-700 text-white"
+                      }`}
                     >
-                      ✅ Finalizar Partido
+                      {finalizandoPartido
+                        ? "⏳ Finalizando..."
+                        : "✅ Finalizar Partido"}
                     </button>
                   )}
                 </>

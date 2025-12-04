@@ -125,6 +125,11 @@ function ConfigurarPartido() {
     tipo: "info",
   }); // tipo: info, success, error
   const [modalVolverDashboard, setModalVolverDashboard] = useState(false);
+  const [modalConfirmarAccion, setModalConfirmarAccion] = useState({
+    visible: false,
+    accion: null,
+  });
+  const [finalizandoPartido, setFinalizandoPartido] = useState(false);
 
   // Estado para monitoreo de jugadores en pista
   const [alertaJugadoresFaltantes, setAlertaJugadoresFaltantes] =
@@ -609,6 +614,32 @@ function ConfigurarPartido() {
     }
 
     setJugadoresAsignados((prev) => {
+      // Guardar el jugador que será reemplazado en esa posición (si existe)
+      const jugadorReemplazado = prev[posicion];
+
+      // Desactivar contador del jugador reemplazado si el cronómetro está activo
+      if (jugadorReemplazado && cronometroActivo) {
+        const ahora = Date.now();
+        setContadoresJugadores((contadores) => {
+          const nuevoContador = { ...contadores };
+
+          if (
+            nuevoContador[jugadorReemplazado.id] &&
+            nuevoContador[jugadorReemplazado.id].activo
+          ) {
+            const tiempoSesion =
+              (ahora - nuevoContador[jugadorReemplazado.id].timestampInicio) /
+              1000;
+            nuevoContador[jugadorReemplazado.id].tiempoAcumulado +=
+              tiempoSesion;
+            nuevoContador[jugadorReemplazado.id].activo = false;
+            nuevoContador[jugadorReemplazado.id].timestampInicio = null;
+          }
+
+          return nuevoContador;
+        });
+      }
+
       // Primero, eliminar al jugador de cualquier posición anterior
       const nuevo = { ...prev };
       Object.keys(nuevo).forEach((pos) => {
@@ -776,6 +807,31 @@ function ConfigurarPartido() {
     setPosicionSeleccionada(posicion);
   };
 
+  // Validar si se puede activar una acción según el estado del partido
+  const validarEstadoParaAccion = (accion) => {
+    const estadosInactivos = ["configuracion", "descanso", "finalizado"];
+
+    if (estadosInactivos.includes(estadoPartido)) {
+      setModalConfirmarAccion({ visible: true, accion });
+      return false;
+    }
+
+    if (tiempoMuertoActivo) {
+      setModalConfirmarAccion({ visible: true, accion });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Confirmar acción fuera de tiempo de juego
+  const confirmarAccionFueraDeTiempo = () => {
+    const accion = modalConfirmarAccion.accion;
+    setModalConfirmarAccion({ visible: false, accion: null });
+    setPosicionSeleccionada(null);
+    setAccionActiva(accionActiva === accion ? null : accion);
+  };
+
   const handleAccionDrop = (e, accion) => {
     e.preventDefault();
     const jugadorData = e.dataTransfer.getData("jugador");
@@ -851,60 +907,84 @@ function ConfigurarPartido() {
       if (esVisitante) {
         if (periodoActual === 1) {
           setFaltasVisitantePrimera((prev) => {
-            const nuevasFaltas = Math.min(5, prev + 1);
-            // Mostrar animación cuando se llega a 5 faltas
-            if (nuevasFaltas === 5 && prev === 4) {
-              setMostrarTarjeta({
-                visible: true,
-                tipo: "5faltas",
-                dorsal: null,
-                equipo: "visitante",
-              });
+            const nuevasFaltas = prev + 1;
+            // Determinar tipo de animación según el número de faltas
+            let tipoAnimacion = "falta";
+            if (nuevasFaltas === 5) {
+              tipoAnimacion = "5faltas";
+            } else if (nuevasFaltas > 5) {
+              tipoAnimacion = "doblepenalty";
             }
+            // Mostrar animación para cualquier falta
+            setMostrarTarjeta({
+              visible: true,
+              tipo: tipoAnimacion,
+              dorsal: jugador.numero_dorsal,
+              equipo: "visitante",
+              numeroFaltas: nuevasFaltas,
+            });
             return nuevasFaltas;
           });
         } else {
           setFaltasVisitanteSegunda((prev) => {
-            const nuevasFaltas = Math.min(5, prev + 1);
-            // Mostrar animación cuando se llega a 5 faltas
-            if (nuevasFaltas === 5 && prev === 4) {
-              setMostrarTarjeta({
-                visible: true,
-                tipo: "5faltas",
-                dorsal: null,
-                equipo: "visitante",
-              });
+            const nuevasFaltas = prev + 1;
+            // Determinar tipo de animación según el número de faltas
+            let tipoAnimacion = "falta";
+            if (nuevasFaltas === 5) {
+              tipoAnimacion = "5faltas";
+            } else if (nuevasFaltas > 5) {
+              tipoAnimacion = "doblepenalty";
             }
+            // Mostrar animación para cualquier falta
+            setMostrarTarjeta({
+              visible: true,
+              tipo: tipoAnimacion,
+              dorsal: jugador.numero_dorsal,
+              equipo: "visitante",
+              numeroFaltas: nuevasFaltas,
+            });
             return nuevasFaltas;
           });
         }
       } else {
         if (periodoActual === 1) {
           setFaltasLocalPrimera((prev) => {
-            const nuevasFaltas = Math.min(5, prev + 1);
-            // Mostrar animación cuando se llega a 5 faltas
-            if (nuevasFaltas === 5 && prev === 4) {
-              setMostrarTarjeta({
-                visible: true,
-                tipo: "5faltas",
-                dorsal: null,
-                equipo: "local",
-              });
+            const nuevasFaltas = prev + 1;
+            // Determinar tipo de animación según el número de faltas
+            let tipoAnimacion = "falta";
+            if (nuevasFaltas === 5) {
+              tipoAnimacion = "5faltas";
+            } else if (nuevasFaltas > 5) {
+              tipoAnimacion = "doblepenalty";
             }
+            // Mostrar animación para cualquier falta
+            setMostrarTarjeta({
+              visible: true,
+              tipo: tipoAnimacion,
+              dorsal: jugador.numero_dorsal,
+              equipo: "local",
+              numeroFaltas: nuevasFaltas,
+            });
             return nuevasFaltas;
           });
         } else {
           setFaltasLocalSegunda((prev) => {
-            const nuevasFaltas = Math.min(5, prev + 1);
-            // Mostrar animación cuando se llega a 5 faltas
-            if (nuevasFaltas === 5 && prev === 4) {
-              setMostrarTarjeta({
-                visible: true,
-                tipo: "5faltas",
-                dorsal: null,
-                equipo: "local",
-              });
+            const nuevasFaltas = prev + 1;
+            // Determinar tipo de animación según el número de faltas
+            let tipoAnimacion = "falta";
+            if (nuevasFaltas === 5) {
+              tipoAnimacion = "5faltas";
+            } else if (nuevasFaltas > 5) {
+              tipoAnimacion = "doblepenalty";
             }
+            // Mostrar animación para cualquier falta
+            setMostrarTarjeta({
+              visible: true,
+              tipo: tipoAnimacion,
+              dorsal: jugador.numero_dorsal,
+              equipo: "local",
+              numeroFaltas: nuevasFaltas,
+            });
             return nuevasFaltas;
           });
         }
@@ -1454,9 +1534,28 @@ function ConfigurarPartido() {
           jugadoresConfirmados
         );
 
-        // Filtrar staff confirmado
-        const staffConfirmado = asistentes
-          .filter((a) => a.estado === "confirmado" && a.posicion === "Staff")
+        // DEBUG: Mostrar TODOS los asistentes del staff para verificar
+        const posicionesStaff = ["Entrenador", "Auxiliar", "Delegado", "Staff"];
+        const todosStaff = asistentes.filter((a) =>
+          posicionesStaff.includes(a.posicion)
+        );
+        console.log(
+          "👔 [DEBUG] TODOS los miembros del staff en asistencias:",
+          todosStaff
+        );
+        console.log(
+          "👔 [DEBUG] Estados de staff:",
+          todosStaff.map((s) => ({
+            nombre: s.jugador_nombre,
+            estado: s.estado,
+            posicion: s.posicion,
+            abreviatura: s.abreviatura,
+          }))
+        );
+
+        // Cargar todo el staff (confirmados y no confirmados)
+        const todoStaff = asistentes
+          .filter((a) => posicionesStaff.includes(a.posicion))
           .map((a) => ({
             id: a.jugador_id,
             nombre: a.jugador_nombre,
@@ -1464,16 +1563,25 @@ function ConfigurarPartido() {
             abreviatura: a.abreviatura,
             color: a.color,
             alias: a.alias,
+            estado: a.estado, // Importante: mantener el estado
+            confirmado: a.estado === "confirmado",
           }));
 
-        console.log("👔 Staff confirmado:", staffConfirmado);
+        console.log(
+          "👔 Todo el staff (confirmados y no confirmados):",
+          todoStaff
+        );
 
+        // Organizar staff por posición usando abreviatura
         const staffOrganizado = {
-          ENT: staffConfirmado.filter((s) => s.nombre.includes("Entrenador")),
-          DEL: staffConfirmado.filter((s) => s.nombre.includes("Delegado")),
-          AUX: staffConfirmado.filter((s) => s.nombre.includes("Auxiliar")),
-          MAT: staffConfirmado.filter((s) => s.nombre.includes("Material")),
+          ENT: todoStaff.filter((s) => s.posicion === "Entrenador"),
+          DEL: todoStaff.filter((s) => s.posicion === "Delegado"),
+          AUX: todoStaff.filter((s) => s.posicion === "Auxiliar"),
+          MAT: todoStaff.filter((s) => s.posicion === "Material"),
+          STAFF: todoStaff.filter((s) => s.posicion === "Staff"), // Legacy
         };
+
+        console.log("🗂️ Staff organizado por rol:", staffOrganizado);
 
         setJugadores(jugadoresConfirmados);
         setStaff(staffOrganizado);
@@ -1909,6 +2017,13 @@ function ConfigurarPartido() {
 
   // Función para preparar y enviar todas las estadísticas al finalizar el partido
   const handleFinalizarPartido = async () => {
+    if (finalizandoPartido) {
+      console.log(
+        "⚠️ Ya se está finalizando el partido, ignorando click adicional"
+      );
+      return;
+    }
+
     if (!partidoId) {
       setModalAlerta({
         visible: true,
@@ -1930,6 +2045,7 @@ function ConfigurarPartido() {
     }
 
     // Si hay datos, finalizar directamente
+    setFinalizandoPartido(true);
     await ejecutarFinalizacionPartido();
   };
 
@@ -2079,6 +2195,7 @@ function ConfigurarPartido() {
       }, 2000);
     } catch (error) {
       console.error("❌ Error al finalizar partido:", error);
+      setFinalizandoPartido(false); // Resetear para permitir reintentar
       setModalAlerta({
         visible: true,
         titulo: "Error al Finalizar",
@@ -2128,6 +2245,7 @@ function ConfigurarPartido() {
           onFinalizarPrimeraParte={finalizarPrimeraParte}
           onIniciarSegundaParte={iniciarSegundaParte}
           onFinalizarPartido={finalizarPartidoDesdeSegundaParte}
+          finalizandoPartido={finalizandoPartido}
           onTiempoMuertoLocal={() => registrarTiempoMuerto("local")}
           onTiempoMuertoVisitante={() => registrarTiempoMuerto("visitante")}
           tiemposMuertosLocal={tiemposMuertosLocal}
@@ -2143,7 +2261,25 @@ function ConfigurarPartido() {
             <div className="relative animate-slideUp">
               {/* Mano sosteniendo la tarjeta o balón */}
               <div className="relative">
-                {mostrarTarjeta.tipo === "5faltas" ? (
+                {mostrarTarjeta.tipo === "falta" ? (
+                  /* Animación simple de número de falta estilo paleta */
+                  <div className="flex flex-col items-center gap-4 animate-slideUp">
+                    {/* Número de falta estilo paleta simple */}
+                    <div className="relative">
+                      {/* Paleta/mango blanco */}
+                      <div className="flex flex-col items-center">
+                        {/* Parte superior redondeada con el número */}
+                        <div className="bg-white rounded-t-3xl rounded-b-lg shadow-2xl border-4 border-gray-300 w-64 h-80 flex items-center justify-center">
+                          <span className="text-[200px] font-black text-gray-900 leading-none">
+                            {mostrarTarjeta.numeroFaltas}
+                          </span>
+                        </div>
+                        {/* Mango */}
+                        <div className="w-20 h-24 bg-gradient-to-b from-gray-200 to-gray-300 rounded-b-3xl shadow-lg border-4 border-t-0 border-gray-300"></div>
+                      </div>
+                    </div>
+                  </div>
+                ) : mostrarTarjeta.tipo === "5faltas" ? (
                   /* Mano con 5 dedos para indicar 5 faltas */
                   <div className="flex flex-col items-center gap-6 animate-pulse">
                     <div className="text-6xl font-bold text-red-600 drop-shadow-lg animate-bounce">
@@ -2198,51 +2334,104 @@ function ConfigurarPartido() {
                         : "LOCAL"}
                     </div>
                   </div>
-                ) : mostrarTarjeta.tipo === "gol" ? (
-                  /* Balón de fútbol grande para gol */
-                  <div className="w-56 h-56 animate-bounce-custom">
-                    <div className="relative w-full h-full bg-white rounded-full shadow-2xl border-4 border-gray-800 flex items-center justify-center">
-                      {/* Patrón del balón */}
-                      <svg className="w-full h-full" viewBox="0 0 200 200">
-                        <circle
-                          cx="100"
-                          cy="100"
-                          r="95"
-                          fill="white"
-                          stroke="#000"
-                          strokeWidth="3"
-                        />
-                        {/* Pentágonos negros del balón */}
-                        <path
-                          d="M100 20 L120 40 L110 65 L90 65 L80 40 Z"
-                          fill="#000"
-                        />
-                        <path
-                          d="M180 100 L170 125 L145 135 L130 115 L145 90 Z"
-                          fill="#000"
-                        />
-                        <path
-                          d="M100 180 L80 160 L90 135 L110 135 L120 160 Z"
-                          fill="#000"
-                        />
-                        <path
-                          d="M20 100 L30 75 L55 65 L70 85 L55 110 Z"
-                          fill="#000"
-                        />
-                        <path
-                          d="M145 40 L165 50 L170 75 L150 85 L130 70 Z"
-                          fill="#000"
-                        />
-                        <path
-                          d="M55 40 L75 30 L95 35 L90 60 L65 60 Z"
-                          fill="#000"
-                        />
-                      </svg>
-                      {/* Dorsal en el centro del balón */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-7xl font-bold text-green-600 drop-shadow-lg bg-white/90 rounded-full w-28 h-28 flex items-center justify-center border-4 border-green-600">
-                          {mostrarTarjeta.dorsal}
+                ) : mostrarTarjeta.tipo === "doblepenalty" ? (
+                  /* Animación para DOBLE PENALTY (más de 5 faltas) */
+                  <div className="flex flex-col items-center gap-6 animate-pulse">
+                    {/* Dos balones con punto de penalty */}
+                    <div className="flex gap-8 animate-bounce">
+                      {/* Primer balón */}
+                      <div className="relative w-24 h-24">
+                        <div className="w-full h-full bg-white rounded-full shadow-2xl border-4 border-gray-800 flex items-center justify-center">
+                          <div className="w-4 h-4 bg-gray-800 rounded-full"></div>
                         </div>
+                      </div>
+                      {/* Segundo balón */}
+                      <div className="relative w-24 h-24">
+                        <div className="w-full h-full bg-white rounded-full shadow-2xl border-4 border-gray-800 flex items-center justify-center">
+                          <div className="w-4 h-4 bg-gray-800 rounded-full"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Texto DOBLE PENALTY */}
+                    <div className="text-6xl font-bold text-red-600 drop-shadow-lg animate-wiggle">
+                      ¡DOBLE PENALTY!
+                    </div>
+
+                    {/* Contador de faltas */}
+                    <div className="bg-gradient-to-r from-red-600 to-red-800 text-white px-10 py-5 rounded-2xl shadow-2xl border-4 border-red-700">
+                      <div className="text-2xl font-bold text-center">
+                        {mostrarTarjeta.equipo === "visitante"
+                          ? "VISITANTE"
+                          : "LOCAL"}
+                      </div>
+                      <div className="text-7xl font-black text-center mt-2 drop-shadow-lg">
+                        {mostrarTarjeta.numeroFaltas}
+                      </div>
+                      <div className="text-xl font-semibold text-center mt-1">
+                        FALTAS ACUMULADAS
+                      </div>
+                    </div>
+                  </div>
+                ) : mostrarTarjeta.tipo === "gol" ? (
+                  /* Animación de GOL con jugador chutando */
+                  <div className="flex flex-col items-center gap-6 animate-pulse">
+                    {/* Texto GOOOOOL!!! */}
+                    <div className="text-8xl font-black text-green-600 drop-shadow-2xl animate-bounce">
+                      ¡GOOOOOL!
+                    </div>
+
+                    {/* Escena: Jugador chutando el balón */}
+                    <div className="relative w-80 h-64 animate-slideUp">
+                      {/* Balón en movimiento */}
+                      <div className="absolute top-10 right-20 w-20 h-20 animate-bounce-custom">
+                        <div className="w-full h-full bg-white rounded-full shadow-2xl border-4 border-gray-800 flex items-center justify-center">
+                          {/* Patrón simple del balón */}
+                          <div className="relative w-full h-full rounded-full overflow-hidden">
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-6 bg-gray-800 rounded-sm transform rotate-45"></div>
+                            <div className="absolute bottom-2 left-2 w-5 h-5 bg-gray-800 rounded-sm transform rotate-45"></div>
+                            <div className="absolute bottom-2 right-2 w-5 h-5 bg-gray-800 rounded-sm transform rotate-45"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Jugador chutando (figura de palitos mejorada) */}
+                      <div className="absolute bottom-0 left-10 animate-wiggle">
+                        {/* Cabeza */}
+                        <div className="w-12 h-12 bg-amber-600 rounded-full border-4 border-amber-800 mx-auto"></div>
+
+                        {/* Cuerpo */}
+                        <div className="w-16 h-24 bg-green-600 rounded-lg border-4 border-green-800 mx-auto mt-1 relative">
+                          {/* Número del dorsal */}
+                          <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">
+                            {mostrarTarjeta.dorsal}
+                          </div>
+                        </div>
+
+                        {/* Brazos */}
+                        <div className="absolute top-14 -left-2 w-16 h-4 bg-amber-600 rounded-full transform -rotate-45 border-2 border-amber-800"></div>
+                        <div className="absolute top-14 -right-2 w-16 h-4 bg-amber-600 rounded-full transform rotate-12 border-2 border-amber-800"></div>
+
+                        {/* Pierna izquierda (extendida chutando) */}
+                        <div className="absolute bottom-0 left-2 w-6 h-20 bg-green-700 rounded-lg transform rotate-45 origin-top border-2 border-green-900"></div>
+
+                        {/* Pierna derecha (apoyo) */}
+                        <div className="absolute bottom-0 right-2 w-6 h-16 bg-green-700 rounded-lg border-2 border-green-900"></div>
+                      </div>
+
+                      {/* Efecto de movimiento */}
+                      <div className="absolute top-20 right-10 text-4xl animate-ping opacity-50">
+                        💨
+                      </div>
+                    </div>
+
+                    {/* Dorsal destacado */}
+                    <div className="bg-green-600 text-white px-12 py-6 rounded-2xl shadow-2xl border-4 border-green-800">
+                      <div className="text-sm font-semibold mb-1 text-center">
+                        ANOTÓ
+                      </div>
+                      <div className="text-7xl font-black text-center">
+                        {mostrarTarjeta.dorsal}
                       </div>
                     </div>
                   </div>
@@ -2295,150 +2484,73 @@ function ConfigurarPartido() {
             >
               {/* Bolas de Staff Técnico encima de jugadores - 1 fila */}
               <div className="flex justify-center gap-2 mb-3">
-                {/* Entrenador */}
-                <div
-                  draggable
-                  onDragStart={(e) =>
-                    handleDragStart(e, {
-                      id: "staff-E",
-                      nombre: "Entrenador",
-                      numero_dorsal: "E",
-                    })
-                  }
-                  onDragEnd={(e) => {
-                    e.target.style.opacity = "1";
-                  }}
-                  onClick={() => {
-                    if (accionActiva) {
-                      ejecutarAccion(
-                        {
-                          id: "staff-E",
-                          nombre: "Entrenador",
-                          numero_dorsal: "E",
-                        },
-                        accionActiva
-                      );
-                    }
-                  }}
-                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva
-                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
-                      : "cursor-grab active:cursor-grabbing"
-                  }`}
-                  title={
-                    accionActiva
-                      ? `Click para aplicar ${accionActiva}`
-                      : "Entrenador - Arrastra para asignar tarjeta"
-                  }
-                >
-                  {estadisticas["staff-E"]?.rojas > 0 ? (
-                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                      E
+                {/* Renderizar dinámicamente el staff confirmado por categoría en orden: Entrenador, Delegado, Auxiliar */}
+                {[...staff.ENT, ...staff.DEL, ...staff.AUX].map((miembro) => {
+                  const estaConfirmado = miembro.confirmado;
+                  const estaDeshabilitado = !estaConfirmado;
+                  return (
+                    <div
+                      key={miembro.id}
+                      draggable={estaConfirmado}
+                      onDragStart={(e) => {
+                        if (estaConfirmado) {
+                          handleDragStart(e, {
+                            id: `staff-${miembro.id}`,
+                            nombre: miembro.nombre,
+                            numero_dorsal: miembro.abreviatura || "S",
+                          });
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        if (estaConfirmado) {
+                          e.target.style.opacity = "1";
+                        }
+                      }}
+                      onClick={() => {
+                        if (estaConfirmado && accionActiva) {
+                          ejecutarAccion(
+                            {
+                              id: `staff-${miembro.id}`,
+                              nombre: miembro.nombre,
+                              numero_dorsal: miembro.abreviatura || "S",
+                            },
+                            accionActiva
+                          );
+                        }
+                      }}
+                      className={`relative w-14 h-14 rounded-full ${
+                        estaDeshabilitado
+                          ? "bg-gray-400 border-2 border-gray-500 opacity-50 cursor-not-allowed"
+                          : "bg-amber-600 border-2 border-amber-800 hover:scale-110 transition-transform"
+                      } flex items-center justify-center text-white font-bold text-sm shadow-lg overflow-hidden ${
+                        estaConfirmado && accionActiva
+                          ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
+                          : estaConfirmado
+                          ? "cursor-grab active:cursor-grabbing"
+                          : ""
+                      }`}
+                      title={
+                        estaDeshabilitado
+                          ? `${miembro.nombre} (${miembro.posicion}) - No confirmado`
+                          : accionActiva
+                          ? `Click para aplicar ${accionActiva}`
+                          : `${miembro.nombre} (${miembro.posicion}) - Arrastra para asignar tarjeta`
+                      }
+                    >
+                      {estadisticas[`staff-${miembro.id}`]?.rojas > 0 ? (
+                        <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
+                          {miembro.abreviatura || "S"}
+                        </div>
+                      ) : estadisticas[`staff-${miembro.id}`]?.amarillas > 0 ? (
+                        <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
+                          {miembro.abreviatura || "S"}
+                        </div>
+                      ) : (
+                        miembro.abreviatura || "S"
+                      )}
                     </div>
-                  ) : estadisticas["staff-E"]?.amarillas > 0 ? (
-                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                      E
-                    </div>
-                  ) : (
-                    "E"
-                  )}
-                </div>
-                {/* Delegado */}
-                <div
-                  draggable
-                  onDragStart={(e) =>
-                    handleDragStart(e, {
-                      id: "staff-D",
-                      nombre: "Delegado",
-                      numero_dorsal: "D",
-                    })
-                  }
-                  onDragEnd={(e) => {
-                    e.target.style.opacity = "1";
-                  }}
-                  onClick={() => {
-                    if (accionActiva) {
-                      ejecutarAccion(
-                        {
-                          id: "staff-D",
-                          nombre: "Delegado",
-                          numero_dorsal: "D",
-                        },
-                        accionActiva
-                      );
-                    }
-                  }}
-                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva
-                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
-                      : "cursor-grab active:cursor-grabbing"
-                  }`}
-                  title={
-                    accionActiva
-                      ? `Click para aplicar ${accionActiva}`
-                      : "Delegado - Arrastra para asignar tarjeta"
-                  }
-                >
-                  {estadisticas["staff-D"]?.rojas > 0 ? (
-                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                      D
-                    </div>
-                  ) : estadisticas["staff-D"]?.amarillas > 0 ? (
-                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                      D
-                    </div>
-                  ) : (
-                    "D"
-                  )}
-                </div>
-                {/* Auxiliar */}
-                <div
-                  draggable
-                  onDragStart={(e) =>
-                    handleDragStart(e, {
-                      id: "staff-A",
-                      nombre: "Auxiliar",
-                      numero_dorsal: "A",
-                    })
-                  }
-                  onDragEnd={(e) => {
-                    e.target.style.opacity = "1";
-                  }}
-                  onClick={() => {
-                    if (accionActiva) {
-                      ejecutarAccion(
-                        {
-                          id: "staff-A",
-                          nombre: "Auxiliar",
-                          numero_dorsal: "A",
-                        },
-                        accionActiva
-                      );
-                    }
-                  }}
-                  className={`relative w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-800 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform overflow-hidden ${
-                    accionActiva
-                      ? "cursor-pointer hover:ring-4 hover:ring-amber-300"
-                      : "cursor-grab active:cursor-grabbing"
-                  }`}
-                  title={
-                    accionActiva
-                      ? `Click para aplicar ${accionActiva}`
-                      : "Auxiliar - Arrastra para asignar tarjeta"
-                  }
-                >
-                  {estadisticas["staff-A"]?.rojas > 0 ? (
-                    <div className="w-6 h-9 bg-red-500 rounded flex items-center justify-center text-white text-sm font-bold shadow-inner">
-                      A
-                    </div>
-                  ) : estadisticas["staff-A"]?.amarillas > 0 ? (
-                    <div className="w-6 h-9 bg-yellow-400 rounded flex items-center justify-center text-gray-800 text-sm font-bold shadow-inner">
-                      A
-                    </div>
-                  ) : (
-                    "A"
-                  )}
-                </div>
+                  );
+                })}
               </div>
 
               <div className="flex gap-2">
@@ -2447,9 +2559,16 @@ function ConfigurarPartido() {
                   {jugadores
                     .filter((j) => !isJugadorAsignado(j.id))
                     .sort((a, b) => {
-                      const minutosA = estadisticas[a.id]?.minutos || 0;
-                      const minutosB = estadisticas[b.id]?.minutos || 0;
-                      return minutosA - minutosB; // Menor a mayor
+                      // Primero los que no tienen dorsal (null)
+                      if (a.numero_dorsal === null && b.numero_dorsal !== null)
+                        return -1;
+                      if (a.numero_dorsal !== null && b.numero_dorsal === null)
+                        return 1;
+                      // Si ambos no tienen dorsal, mantener orden original
+                      if (a.numero_dorsal === null && b.numero_dorsal === null)
+                        return 0;
+                      // Si ambos tienen dorsal, ordenar por número
+                      return a.numero_dorsal - b.numero_dorsal;
                     })
                     .slice(
                       0,
@@ -2551,9 +2670,16 @@ function ConfigurarPartido() {
                   {jugadores
                     .filter((j) => !isJugadorAsignado(j.id))
                     .sort((a, b) => {
-                      const minutosA = estadisticas[a.id]?.minutos || 0;
-                      const minutosB = estadisticas[b.id]?.minutos || 0;
-                      return minutosA - minutosB; // Menor a mayor
+                      // Primero los que no tienen dorsal (null)
+                      if (a.numero_dorsal === null && b.numero_dorsal !== null)
+                        return -1;
+                      if (a.numero_dorsal !== null && b.numero_dorsal === null)
+                        return 1;
+                      // Si ambos no tienen dorsal, mantener orden original
+                      if (a.numero_dorsal === null && b.numero_dorsal === null)
+                        return 0;
+                      // Si ambos tienen dorsal, ordenar por número
+                      return a.numero_dorsal - b.numero_dorsal;
                     })
                     .slice(
                       Math.ceil(
@@ -2660,9 +2786,16 @@ function ConfigurarPartido() {
                   {jugadores
                     .filter((j) => !isJugadorAsignado(j.id))
                     .sort((a, b) => {
-                      const minutosA = estadisticas[a.id]?.minutos || 0;
-                      const minutosB = estadisticas[b.id]?.minutos || 0;
-                      return minutosA - minutosB; // Menor a mayor
+                      // Primero los que no tienen dorsal (null)
+                      if (a.numero_dorsal === null && b.numero_dorsal !== null)
+                        return -1;
+                      if (a.numero_dorsal !== null && b.numero_dorsal === null)
+                        return 1;
+                      // Si ambos no tienen dorsal, mantener orden original
+                      if (a.numero_dorsal === null && b.numero_dorsal === null)
+                        return 0;
+                      // Si ambos tienen dorsal, ordenar por número
+                      return a.numero_dorsal - b.numero_dorsal;
                     })
                     .slice(
                       Math.ceil(
@@ -2810,8 +2943,14 @@ function ConfigurarPartido() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "gol")}
                   onClick={() => {
-                    setPosicionSeleccionada(null);
-                    setAccionActiva(accionActiva === "gol" ? null : "gol");
+                    if (accionActiva === "gol") {
+                      setAccionActiva(null);
+                    } else {
+                      if (validarEstadoParaAccion("gol")) {
+                        setPosicionSeleccionada(null);
+                        setAccionActiva("gol");
+                      }
+                    }
                   }}
                   className={`w-24 h-[74px] bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "gol"
@@ -2834,20 +2973,30 @@ function ConfigurarPartido() {
                       : "Click para activar o arrastra jugador aquí"
                   }
                 >
-                  <svg
-                    className="w-12 h-12"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  <svg className="w-10 h-10" viewBox="0 0 50 50" fill="none">
+                    <circle
+                      cx="25"
+                      cy="25"
+                      r="23"
+                      fill="white"
+                      stroke="white"
+                      strokeWidth="2"
+                    />
                   </svg>
+                  <span className="text-xs font-bold">GOL</span>
                 </div>
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "falta")}
                   onClick={() => {
-                    setPosicionSeleccionada(null);
-                    setAccionActiva(accionActiva === "falta" ? null : "falta");
+                    if (accionActiva === "falta") {
+                      setAccionActiva(null);
+                    } else {
+                      if (validarEstadoParaAccion("falta")) {
+                        setPosicionSeleccionada(null);
+                        setAccionActiva("falta");
+                      }
+                    }
                   }}
                   className={`w-24 h-[74px] bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "falta"
@@ -2872,26 +3021,29 @@ function ConfigurarPartido() {
                 >
                   <svg
                     className="w-10 h-10"
+                    viewBox="0 0 50 50"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24"
+                    strokeWidth="4"
+                    strokeLinecap="round"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
+                    <line x1="10" y1="10" x2="40" y2="40" />
+                    <line x1="40" y1="10" x2="10" y2="40" />
                   </svg>
+                  <span className="text-xs font-bold">FALTA</span>
                 </div>
                 <div
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "amarilla")}
                   onClick={() => {
-                    setPosicionSeleccionada(null);
-                    setAccionActiva(
-                      accionActiva === "amarilla" ? null : "amarilla"
-                    );
+                    if (accionActiva === "amarilla") {
+                      setAccionActiva(null);
+                    } else {
+                      if (validarEstadoParaAccion("amarilla")) {
+                        setPosicionSeleccionada(null);
+                        setAccionActiva("amarilla");
+                      }
+                    }
                   }}
                   className={`w-24 h-[74px] bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "amarilla"
@@ -2933,8 +3085,14 @@ function ConfigurarPartido() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleAccionDrop(e, "roja")}
                   onClick={() => {
-                    setPosicionSeleccionada(null);
-                    setAccionActiva(accionActiva === "roja" ? null : "roja");
+                    if (accionActiva === "roja") {
+                      setAccionActiva(null);
+                    } else {
+                      if (validarEstadoParaAccion("roja")) {
+                        setPosicionSeleccionada(null);
+                        setAccionActiva("roja");
+                      }
+                    }
                   }}
                   className={`w-24 h-[74px] bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-lg transition-all flex flex-col items-center justify-center gap-2 cursor-pointer border-2 ${
                     accionActiva === "roja"
@@ -3678,7 +3836,12 @@ function ConfigurarPartido() {
               {/* Botón Finalizar Excepcional - Rojo */}
               <button
                 onClick={finalizarPartidoExcepcional}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-all hover:scale-105 flex items-center gap-2"
+                disabled={finalizandoPartido}
+                className={`px-6 py-3 font-bold rounded-lg shadow-md transition-all flex items-center gap-2 ${
+                  finalizandoPartido
+                    ? "bg-gray-400 cursor-not-allowed opacity-60"
+                    : "bg-red-600 hover:bg-red-700 text-white hover:scale-105"
+                }`}
                 title="Finalizar partido de forma excepcional (requiere motivo)"
               >
                 <svg
@@ -4596,6 +4759,78 @@ function ConfigurarPartido() {
                   Entendido
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Confirmación de Acción Fuera de Tiempo de Juego */}
+        {modalConfirmarAccion.visible && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
+                  <svg
+                    className="w-8 h-8 text-orange-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Acción Fuera de Tiempo
+                </h3>
+              </div>
+              <div className="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6">
+                <p className="text-sm text-orange-800">
+                  <strong>Advertencia:</strong> El partido{" "}
+                  {estadoPartido === "configuracion"
+                    ? "aún no ha comenzado"
+                    : estadoPartido === "descanso"
+                    ? "está en descanso"
+                    : estadoPartido === "finalizado"
+                    ? "ha finalizado"
+                    : tiempoMuertoActivo
+                    ? "está en tiempo muerto"
+                    : "no está en tiempo de juego activo"}
+                  .
+                </p>
+              </div>
+              <p className="text-gray-600 text-center mb-6">
+                ¿Estás seguro de que deseas registrar esta acción (
+                {modalConfirmarAccion.accion === "gol"
+                  ? "GOL"
+                  : modalConfirmarAccion.accion === "falta"
+                  ? "FALTA"
+                  : modalConfirmarAccion.accion === "amarilla"
+                  ? "TARJETA AMARILLA"
+                  : modalConfirmarAccion.accion === "roja"
+                  ? "TARJETA ROJA"
+                  : ""}
+                ) en este momento?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() =>
+                    setModalConfirmarAccion({ visible: false, accion: null })
+                  }
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarAccionFueraDeTiempo}
+                  className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                >
+                  Sí, Registrar
+                </button>
+              </div>
             </div>
           </div>
         )}

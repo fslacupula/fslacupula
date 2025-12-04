@@ -69,6 +69,11 @@ export default function DetalleAsistencia() {
         text: "text-red-800",
         label: "✗ No asiste",
       },
+      ausente: {
+        bg: "bg-red-100",
+        text: "text-red-800",
+        label: "✗ No asiste",
+      },
       pendiente: {
         bg: "bg-yellow-100",
         text: "text-yellow-800",
@@ -142,11 +147,32 @@ export default function DetalleAsistencia() {
 
   // Agrupar asistencias por tipo
   const asistenciasStaff =
-    evento?.asistencias?.filter((a) => a.posicion === "Staff") || [];
-  const asistenciasJugadores =
     evento?.asistencias?.filter(
-      (a) => a.posicion !== "Staff" && a.posicion !== "Extra"
+      (a) =>
+        a.posicion === "Staff" ||
+        a.posicion === "Entrenador" ||
+        a.posicion === "Delegado" ||
+        a.posicion === "Auxiliar"
     ) || [];
+  const asistenciasJugadores =
+    evento?.asistencias
+      ?.filter(
+        (a) =>
+          a.posicion !== "Staff" &&
+          a.posicion !== "Entrenador" &&
+          a.posicion !== "Delegado" &&
+          a.posicion !== "Auxiliar" &&
+          a.posicion !== "Extra"
+      )
+      .sort((a, b) => {
+        // Primero los que no tienen dorsal (null o undefined)
+        if (!a.dorsal && b.dorsal) return -1;
+        if (a.dorsal && !b.dorsal) return 1;
+        // Si ambos no tienen dorsal, mantener orden original
+        if (!a.dorsal && !b.dorsal) return 0;
+        // Si ambos tienen dorsal, ordenar por número
+        return a.dorsal - b.dorsal;
+      }) || [];
   const asistenciasExtras =
     evento?.asistencias?.filter((a) => a.posicion === "Extra") || [];
 
