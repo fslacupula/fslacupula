@@ -80,7 +80,7 @@ export default function DashboardGestor() {
     descripcion: "",
     rival: "",
     tipo: "amistoso",
-    es_local: true,
+    esLocal: true,
     resultado: "",
   });
 
@@ -218,7 +218,7 @@ export default function DashboardGestor() {
             ubicacion: formData.ubicacion,
             rival: formData.rival,
             tipo: formData.tipo as "amistoso" | "liga" | "copa" | "torneo",
-            esLocal: formData.es_local,
+            esLocal: formData.esLocal,
           });
 
           // Actualizar resultado si existe
@@ -229,7 +229,7 @@ export default function DashboardGestor() {
               ubicacion: formData.ubicacion,
               rival: formData.rival,
               tipo: formData.tipo as "amistoso" | "liga" | "copa" | "torneo",
-              esLocal: formData.es_local,
+              esLocal: formData.esLocal,
             });
           }
         }
@@ -249,7 +249,7 @@ export default function DashboardGestor() {
             ubicacion: formData.ubicacion,
             rival: formData.rival,
             tipo: formData.tipo as "amistoso" | "liga" | "copa" | "torneo",
-            esLocal: formData.es_local,
+            esLocal: formData.esLocal,
           });
         }
       }

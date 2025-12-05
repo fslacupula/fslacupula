@@ -86,7 +86,7 @@ export function useEventos(filtros?: FiltrosEventos) {
         hora: datos.hora,
         ubicacion: datos.ubicacion,
         descripcion: datos.descripcion,
-        duracion_minutos: datos.duracionMinutos,
+        duracionMinutos: datos.duracionMinutos,
       });
       const nuevoEntrenamiento = Entrenamiento.fromDTO(
         response.data.entrenamiento
@@ -155,7 +155,7 @@ export function useEventos(filtros?: FiltrosEventos) {
         hora: datos.hora,
         ubicacion: datos.ubicacion,
         descripcion: datos.descripcion,
-        duracion_minutos: datos.duracionMinutos,
+        duracionMinutos: datos.duracionMinutos,
       });
       const entrenamientoActualizado = Entrenamiento.fromDTO(
         response.data.entrenamiento
