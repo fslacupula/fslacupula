@@ -1,6 +1,35 @@
 import { formatearFecha } from "../utils/actaHelpers";
 
-export default function CabeceraPartido({ partido, estadisticas }) {
+interface Partido {
+  id: number;
+  fecha_hora: string;
+  lugar: string;
+  rival: string;
+  tipo?: string;
+  estado: string;
+}
+
+interface Estadisticas {
+  duracion_minutos: number;
+  goles_local: number;
+  goles_visitante: number;
+  faltas_local: number;
+  faltas_visitante: number;
+  faltas_local_primera?: number;
+  faltas_local_segunda?: number;
+  faltas_visitante_primera?: number;
+  faltas_visitante_segunda?: number;
+}
+
+interface CabeceraPartidoProps {
+  partido: Partido;
+  estadisticas: Estadisticas;
+}
+
+export default function CabeceraPartido({
+  partido,
+  estadisticas,
+}: CabeceraPartidoProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
       <h1 className="text-3xl font-bold text-center mb-6 text-blue-600">

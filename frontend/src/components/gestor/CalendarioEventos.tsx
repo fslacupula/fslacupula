@@ -36,9 +36,9 @@ export function CalendarioEventos({
     "Diciembre",
   ];
 
-  const nombresDias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const nombresDias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-  // Calcular días del mes
+  // Calcular días del mes (empezando en lunes)
   const primerDia = new Date(mesActual.getFullYear(), mesActual.getMonth(), 1);
   const ultimoDia = new Date(
     mesActual.getFullYear(),
@@ -46,7 +46,10 @@ export function CalendarioEventos({
     0
   );
   const diasEnMes = ultimoDia.getDate();
-  const primerDiaSemana = primerDia.getDay();
+  let primerDiaSemana = primerDia.getDay();
+
+  // Ajustar para que lunes sea 0 (domingo es 6)
+  primerDiaSemana = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
 
   // Crear array de días
   const dias: (number | null)[] = [];
@@ -148,28 +151,88 @@ export function CalendarioEventos({
               <div className="font-semibold text-gray-900">{dia}</div>
               {hayEventos && (
                 <div className="space-y-0.5 sm:space-y-1 mt-1">
-                  {ents.map((e) => (
-                    <div
-                      key={`ent-${e.id}`}
-                      onClick={() => onEventoClick(e.id, "entrenamiento")}
-                      className="text-[8px] sm:text-[10px] bg-blue-100 text-blue-800 p-0.5 sm:p-1 rounded truncate cursor-pointer hover:bg-blue-200"
-                      title={`Entrenamiento: ${
-                        e.descripcion || "Sin descripción"
-                      }`}
-                    >
-                      🏃 {e.hora}
-                    </div>
-                  ))}
-                  {parts.map((p) => (
-                    <div
-                      key={`part-${p.id}`}
-                      onClick={() => onEventoClick(p.id, "partido")}
-                      className="text-[8px] sm:text-[10px] bg-green-100 text-green-800 p-0.5 sm:p-1 rounded truncate cursor-pointer hover:bg-green-200"
-                      title={`Partido vs ${p.rival}`}
-                    >
-                      ⚽ {p.hora}
-                    </div>
-                  ))}
+                  {ents.map((e) => {
+                    const stats = e.contarAsistencias();
+                    return (
+                      <div
+                        key={`ent-${e.id}`}
+                        onClick={() => onEventoClick(e.id, "entrenamiento")}
+                        className="text-[8px] sm:text-xs bg-green-50 border border-green-200 p-0.5 sm:p-1 rounded cursor-pointer hover:bg-green-100"
+                        title={`Entrenamiento ${e.hora} - ${e.ubicacion}`}
+                      >
+                        <div className="font-semibold flex items-center justify-between">
+                          <span className="truncate text-[8px] sm:text-xs">
+                            {e.hora}
+                          </span>
+                          <span className="text-xs sm:text-sm">📋</span>
+                        </div>
+                        <div className="text-[8px] sm:text-[10px] truncate text-gray-600 hidden sm:block">
+                          {e.ubicacion}
+                        </div>
+                        <div className="flex gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] mt-0.5">
+                          <span
+                            className="bg-green-200 text-green-800 px-0.5 sm:px-1 rounded"
+                            title="Confirmados"
+                          >
+                            ✓ {stats.confirmados}
+                          </span>
+                          <span
+                            className="bg-red-200 text-red-800 px-0.5 sm:px-1 rounded"
+                            title="No asisten"
+                          >
+                            ✗ {stats.ausentes}
+                          </span>
+                          <span
+                            className="bg-yellow-200 text-yellow-800 px-0.5 sm:px-1 rounded hidden sm:inline"
+                            title="Pendientes"
+                          >
+                            ⏳ {stats.pendientes}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {parts.map((p) => {
+                    const stats = p.contarAsistencias();
+                    return (
+                      <div
+                        key={`part-${p.id}`}
+                        onClick={() => onEventoClick(p.id, "partido")}
+                        className="text-[8px] sm:text-xs bg-blue-50 border border-blue-200 p-0.5 sm:p-1 rounded cursor-pointer hover:bg-blue-100"
+                        title={`Partido vs ${p.rival}`}
+                      >
+                        <div className="font-semibold flex items-center justify-between">
+                          <span className="truncate text-[8px] sm:text-xs">
+                            {p.hora}
+                          </span>
+                          <span className="text-xs sm:text-sm">⚽</span>
+                        </div>
+                        <div className="text-[8px] sm:text-[10px] truncate text-gray-600 hidden sm:block">
+                          vs {p.rival}
+                        </div>
+                        <div className="flex gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] mt-0.5">
+                          <span
+                            className="bg-green-200 text-green-800 px-0.5 sm:px-1 rounded"
+                            title="Confirmados"
+                          >
+                            ✓ {stats.confirmados}
+                          </span>
+                          <span
+                            className="bg-red-200 text-red-800 px-0.5 sm:px-1 rounded"
+                            title="No asisten"
+                          >
+                            ✗ {stats.ausentes}
+                          </span>
+                          <span
+                            className="bg-yellow-200 text-yellow-800 px-0.5 sm:px-1 rounded hidden sm:inline"
+                            title="Pendientes"
+                          >
+                            ⏳ {stats.pendientes}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

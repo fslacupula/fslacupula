@@ -1,4 +1,5 @@
 import type { Entrenamiento, Partido } from "@domain";
+import { useNavigate } from "react-router-dom";
 
 interface EventoCardProps {
   evento: Entrenamiento | Partido;
@@ -19,6 +20,7 @@ export function EventoCard({
   onEditar,
   onEliminar,
 }: EventoCardProps) {
+  const navigate = useNavigate();
   const esPartido = tipoEvento === "partido";
   const partido = esPartido ? (evento as Partido) : null;
   const entrenamiento = !esPartido ? (evento as Entrenamiento) : null;
@@ -89,24 +91,46 @@ export function EventoCard({
         </div>
 
         {/* Botones de acción */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-shrink-0">
+        <div className="flex flex-col gap-2 sm:flex-shrink-0">
           <button
             onClick={onVerDetalle}
-            className="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 transition-colors"
+            className="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors whitespace-nowrap"
           >
-            Ver Detalle
+            Ver Asistencia
           </button>
+
+          {/* Botones específicos para partidos */}
+          {esPartido && partido && (
+            <>
+              {partido.estado === "finalizado" && (
+                <button
+                  onClick={() => navigate(`/acta-partido/${partido.id}`)}
+                  className="px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors whitespace-nowrap"
+                >
+                  📋 Ver Acta
+                </button>
+              )}
+              {partido.estado !== "finalizado" && (
+                <button
+                  onClick={() => navigate("/configurar-partido")}
+                  className="px-3 py-2 bg-purple-500 text-white rounded text-sm hover:bg-purple-600 transition-colors whitespace-nowrap"
+                >
+                  ⚙️ Configurar Partido
+                </button>
+              )}
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
             <button
               onClick={onEditar}
-              className="px-3 py-1.5 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition-colors"
+              className="px-3 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition-colors"
             >
               Editar
             </button>
             <button
               onClick={onEliminar}
-              className="px-3 py-1.5 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
+              className="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
             >
               Eliminar
             </button>

@@ -1,3 +1,48 @@
+import type { HistorialAccion } from "../utils/actaHelpers";
+
+interface Partido {
+  id: number;
+  rival: string;
+  fecha_hora: string;
+  lugar: string;
+  estado: string;
+}
+
+interface Estadisticas {
+  goles_local: number;
+  goles_visitante: number;
+  faltas_local: number;
+  faltas_visitante: number;
+  faltas_local_primera?: number;
+  faltas_local_segunda?: number;
+  faltas_visitante_primera?: number;
+  faltas_visitante_segunda?: number;
+  duracion_minutos: number;
+}
+
+interface Jugador {
+  jugador_id: number;
+  jugador_nombre_completo: string;
+  alias?: string;
+  dorsal?: number;
+  equipo: "local" | "visitante";
+  minutos_jugados?: number;
+  tarjetas_amarillas?: number;
+  tarjetas_rojas?: number;
+  goles?: number;
+}
+
+interface MarcadorPartidoProps {
+  partido: Partido;
+  estadisticas: Estadisticas;
+  jugadores: Jugador[];
+  historial: HistorialAccion[];
+  tarjetasAmarillasLocal: number;
+  tarjetasRojasLocal: number;
+  tarjetasAmarillasVisitante: number;
+  tarjetasRojasVisitante: number;
+}
+
 export default function MarcadorPartido({
   partido,
   estadisticas,
@@ -7,7 +52,7 @@ export default function MarcadorPartido({
   tarjetasRojasLocal,
   tarjetasAmarillasVisitante,
   tarjetasRojasVisitante,
-}) {
+}: MarcadorPartidoProps) {
   return (
     <div className="mt-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
       {/* Fila superior con grid de 7 columnas */}
@@ -28,7 +73,15 @@ export default function MarcadorPartido({
                   (accion) =>
                     accion.accion === "gol" && accion.equipo === "local"
                 )
-                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                .sort((a, b) => {
+                  const timestampA = a.timestamp
+                    ? new Date(a.timestamp).getTime()
+                    : 0;
+                  const timestampB = b.timestamp
+                    ? new Date(b.timestamp).getTime()
+                    : 0;
+                  return timestampA - timestampB;
+                })
                 .map((gol, idx) => {
                   const jugador = jugadores.find(
                     (j) => j.jugador_id === gol.jugador_id
@@ -57,7 +110,15 @@ export default function MarcadorPartido({
                 (accion.accion === "amarilla" || accion.accion === "roja") &&
                 accion.equipo === "local"
             )
-            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+            .sort((a, b) => {
+              const timestampA = a.timestamp
+                ? new Date(a.timestamp).getTime()
+                : 0;
+              const timestampB = b.timestamp
+                ? new Date(b.timestamp).getTime()
+                : 0;
+              return timestampA - timestampB;
+            })
             .map((tarjeta, idx) => {
               const jugador = jugadores.find(
                 (j) => j.jugador_id === tarjeta.jugador_id
@@ -99,7 +160,15 @@ export default function MarcadorPartido({
                   (accion) =>
                     accion.accion === "gol" && accion.equipo === "visitante"
                 )
-                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                .sort((a, b) => {
+                  const timestampA = a.timestamp
+                    ? new Date(a.timestamp).getTime()
+                    : 0;
+                  const timestampB = b.timestamp
+                    ? new Date(b.timestamp).getTime()
+                    : 0;
+                  return timestampA - timestampB;
+                })
                 .map((gol, idx) => {
                   const minuto = gol.minuto_partido || gol.minuto || 0;
                   return (
@@ -125,7 +194,15 @@ export default function MarcadorPartido({
                 (accion.accion === "amarilla" || accion.accion === "roja") &&
                 accion.equipo === "visitante"
             )
-            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+            .sort((a, b) => {
+              const timestampA = a.timestamp
+                ? new Date(a.timestamp).getTime()
+                : 0;
+              const timestampB = b.timestamp
+                ? new Date(b.timestamp).getTime()
+                : 0;
+              return timestampA - timestampB;
+            })
             .map((tarjeta, idx) => {
               const minuto = tarjeta.minuto_partido || tarjeta.minuto || 0;
               return (

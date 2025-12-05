@@ -1,10 +1,78 @@
 import { useState, useEffect } from "react";
 
+interface Jugador {
+  id: number;
+  nombre: string;
+  alias?: string;
+  dorsal?: number;
+}
+
+interface TiempoMuerto {
+  timestampInicio: number;
+}
+
+interface Estadisticas {
+  [jugadorId: number]: {
+    minutos?: number;
+    minutosAcumulados?: number;
+    goles?: number;
+    asistencias?: number;
+    amarillas?: number;
+    rojas?: number;
+  };
+}
+
+interface FlashEffect {
+  type: "gol" | "falta" | null;
+  equipo?: "local" | "visitante";
+  jugadorId?: number | null;
+  timestamp?: number | null;
+}
+
+interface TiemposMuertos {
+  primera: boolean;
+  segunda: boolean;
+}
+
+interface MarcadorProps {
+  equipoLocal?: string;
+  equipoVisitante?: string;
+  onDeshacer?: () => void;
+  deshabilitarDeshacer?: boolean;
+  golesLocal?: number;
+  golesVisitante?: number;
+  faltasLocal?: number;
+  faltasVisitante?: number;
+  onIncrementarGolLocal?: () => void;
+  onDecrementarGolLocal?: () => void;
+  onIncrementarGolVisitante?: () => void;
+  onDecrementarGolVisitante?: () => void;
+  onCronometroChange?: () => void;
+  cronometroActivo?: boolean;
+  tiempoCronometro?: number;
+  timestampInicioCronometro?: number | null;
+  estadoPartido?: string;
+  flashEffect?: FlashEffect;
+  jugadoresLocal?: Jugador[];
+  jugadoresAsignados?: { [posicion: string]: Jugador | null };
+  estadisticas?: Estadisticas;
+  onIniciarPartido?: () => void;
+  onFinalizarPrimeraParte?: () => void;
+  onIniciarSegundaParte?: () => void;
+  onFinalizarPartido?: () => void;
+  finalizandoPartido?: boolean;
+  onTiempoMuertoLocal?: () => void;
+  onTiempoMuertoVisitante?: () => void;
+  tiemposMuertosLocal?: TiemposMuertos;
+  tiemposMuertosVisitante?: TiemposMuertos;
+  periodoActual?: number;
+  tiempoMuertoActivo?: boolean;
+  contadorTiempoMuerto?: TiempoMuerto | null;
+}
+
 function Marcador({
   equipoLocal = "LOCAL",
   equipoVisitante = "VISITANTE",
-  onDeshacer,
-  deshabilitarDeshacer = false,
   golesLocal = 0,
   golesVisitante = 0,
   faltasLocal = 0,
@@ -34,17 +102,18 @@ function Marcador({
   periodoActual = 1,
   tiempoMuertoActivo = false,
   contadorTiempoMuerto = null,
-}) {
-  const [minutos, setMinutos] = useState(0);
-  const [segundos, setSegundos] = useState(0);
-  const [corriendo, setCorriendo] = useState(false);
-  const [flashGolLocal, setFlashGolLocal] = useState(false);
-  const [flashGolVisitante, setFlashGolVisitante] = useState(false);
-  const [flashFaltasLocal, setFlashFaltasLocal] = useState(false);
-  const [flashFaltasVisitante, setFlashFaltasVisitante] = useState(false);
+}: MarcadorProps) {
+  const [minutos, setMinutos] = useState<number>(0);
+  const [segundos, setSegundos] = useState<number>(0);
+  const [corriendo, setCorriendo] = useState<boolean>(false);
+  const [flashGolLocal, setFlashGolLocal] = useState<boolean>(false);
+  const [flashGolVisitante, setFlashGolVisitante] = useState<boolean>(false);
+  const [flashFaltasLocal, setFlashFaltasLocal] = useState<boolean>(false);
+  const [flashFaltasVisitante, setFlashFaltasVisitante] =
+    useState<boolean>(false);
 
   // Estados para tiempo muerto
-  const [segundosTiempoMuerto, setSegundosTiempoMuerto] = useState(0);
+  const [segundosTiempoMuerto, setSegundosTiempoMuerto] = useState<number>(0);
 
   // Sincronizar cronometroActivo del padre con el estado local
   useEffect(() => {
@@ -135,7 +204,7 @@ function Marcador({
   };
 
   // Calcular minutos jugados de cada jugador
-  const calcularMinutos = (jugadorId) => {
+  const calcularMinutos = (jugadorId: number): number => {
     const stats = estadisticas[jugadorId];
     if (!stats) return 0;
 

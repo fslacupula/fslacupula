@@ -1,6 +1,22 @@
-import { obtenerIconoAccion } from "../utils/actaHelpers";
+import { obtenerIconoAccion, type HistorialAccion } from "../utils/actaHelpers";
 
-export default function CronologiaPartido({ historial, estadisticas }) {
+interface Estadisticas {
+  duracion_minutos: number;
+  goles_local: number;
+  goles_visitante: number;
+  faltas_local: number;
+  faltas_visitante: number;
+}
+
+interface CronologiaPartidoProps {
+  historial: HistorialAccion[];
+  estadisticas: Estadisticas;
+}
+
+export default function CronologiaPartido({
+  historial,
+  estadisticas,
+}: CronologiaPartidoProps) {
   return (
     <div className="col-span-4">
       <div className="bg-white rounded-lg shadow-lg p-6">

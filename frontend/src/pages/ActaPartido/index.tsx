@@ -1,16 +1,70 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { partidos } from "../../services/api";
-import { contarTarjetasHistorial } from "./utils/actaHelpers";
+import {
+  contarTarjetasHistorial,
+  type HistorialAccion,
+} from "./utils/actaHelpers";
 import CabeceraPartido from "./components/CabeceraPartido";
 import MarcadorPartido from "./components/MarcadorPartido";
 import TiempoJugado from "./components/TiempoJugado";
 import CronologiaPartido from "./components/CronologiaPartido";
 
+interface Partido {
+  id: number;
+  fecha_hora: string;
+  lugar: string;
+  rival: string;
+  tipo?: string;
+  estado: string;
+}
+
+interface Estadisticas {
+  goles_local: number;
+  goles_visitante: number;
+  faltas_local: number;
+  faltas_visitante: number;
+  faltas_local_primera?: number;
+  faltas_local_segunda?: number;
+  faltas_visitante_primera?: number;
+  faltas_visitante_segunda?: number;
+  duracion_minutos: number;
+}
+
+interface Jugador {
+  jugador_id: number;
+  jugador_nombre_completo: string;
+  alias?: string;
+  dorsal?: number;
+  equipo: "local" | "visitante";
+  minutos_jugados?: number;
+  tarjetas_amarillas?: number;
+  tarjetas_rojas?: number;
+  goles?: number;
+}
+
+interface Staff {
+  id?: number;
+  nombre: string;
+  tipo?: string;
+  tipo_staff?: string;
+  equipo: "local" | "visitante";
+  tarjetas_amarillas?: number;
+  tarjetas_rojas?: number;
+}
+
+interface ActaData {
+  partido: Partido;
+  estadisticas: Estadisticas;
+  jugadores: Jugador[];
+  historial: HistorialAccion[];
+  staff?: Staff[];
+}
+
 export default function ActaPartido() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [acta, setActa] = useState(null);
+  const [acta, setActa] = useState<ActaData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,9 +73,10 @@ export default function ActaPartido() {
 
   const cargarEstadisticas = async () => {
     try {
-      const response = await partidos.obtenerEstadisticas(id);
+      const partidoId = parseInt(id!, 10);
+      const response = await partidos.obtenerEstadisticas(partidoId);
       setActa(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al cargar estadísticas:", error);
       if (error.response?.status === 404) {
         alert("Este partido aún no ha sido finalizado");

@@ -46,7 +46,7 @@ export abstract class Evento {
   }
 
   obtenerAsistenciasAusentes(): AsistenciaJugador[] {
-    return this.asistencias.filter((a) => a.estado === "ausente");
+    return this.asistencias.filter((a) => a.estado === "no_asiste");
   }
 
   obtenerAsistenciasPendientes(): AsistenciaJugador[] {

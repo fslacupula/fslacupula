@@ -3,15 +3,56 @@ import { useParams, useNavigate } from "react-router-dom";
 import { entrenamientos, partidos, motivos } from "../services/api";
 import { useAuthContext } from "@contexts";
 
+interface Asistencia {
+  jugador_id: number;
+  jugador_nombre: string;
+  alias?: string;
+  dorsal?: number;
+  posicion: string;
+  estado: "confirmado" | "ausente" | "no_asiste" | "pendiente";
+  color?: string;
+  abreviatura?: string;
+  motivo_nombre?: string;
+  comentario?: string;
+}
+
+interface Evento {
+  id: number;
+  fecha: string;
+  hora: string;
+  ubicacion: string;
+  descripcion?: string;
+  rival?: string;
+  tipo?: string;
+  es_local?: boolean;
+  resultado?: string;
+  estado?: string;
+  asistencias?: Asistencia[];
+}
+
+interface MotivoAusencia {
+  id: number;
+  motivo: string;
+  descripcion?: string;
+}
+
+interface BadgeConfig {
+  bg: string;
+  text: string;
+  label: string;
+}
+
 export default function DetalleAsistencia() {
   const { usuario, logout } = useAuthContext();
-  const { tipo, id } = useParams();
+  const { tipo, id } = useParams<{ tipo: string; id: string }>();
   const navigate = useNavigate();
-  const [evento, setEvento] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [motivosLista, setMotivosLista] = useState([]);
-  const [showMotivoModal, setShowMotivoModal] = useState(false);
-  const [asistenciaEditar, setAsistenciaEditar] = useState(null);
+  const [evento, setEvento] = useState<Evento | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [motivosLista, setMotivosLista] = useState<MotivoAusencia[]>([]);
+  const [showMotivoModal, setShowMotivoModal] = useState<boolean>(false);
+  const [asistenciaEditar, setAsistenciaEditar] = useState<Asistencia | null>(
+    null
+  );
 
   useEffect(() => {
     cargarDetalle();
@@ -30,17 +71,19 @@ export default function DetalleAsistencia() {
   };
 
   const cargarDetalle = async () => {
+    if (!id) return;
+
     try {
       setLoading(true);
       const res =
         tipo === "entrenamientos" || tipo === "entrenamiento"
-          ? await entrenamientos.obtener(id)
-          : await partidos.obtener(id);
+          ? await entrenamientos.obtener(parseInt(id))
+          : await partidos.obtener(parseInt(id));
 
       const data =
         tipo === "entrenamientos" || tipo === "entrenamiento"
-          ? res.data.entrenamiento
-          : res.data.partido;
+          ? (res.data as any).entrenamiento
+          : (res.data as any).partido;
 
       setEvento(data);
     } catch (error) {
@@ -57,8 +100,10 @@ export default function DetalleAsistencia() {
     navigate("/login");
   };
 
-  const getEstadoBadge = (estado) => {
-    const config = {
+  const getEstadoBadge = (
+    estado: "confirmado" | "ausente" | "no_asiste" | "pendiente"
+  ): BadgeConfig => {
+    const config: Record<string, BadgeConfig> = {
       confirmado: {
         bg: "bg-green-100",
         text: "text-green-800",
@@ -83,8 +128,11 @@ export default function DetalleAsistencia() {
     return config[estado] || config.pendiente;
   };
 
-  const handleCambiarEstado = async (asistencia, nuevoEstado) => {
-    if (nuevoEstado === "ausente") {
+  const handleCambiarEstado = async (
+    asistencia: Asistencia,
+    nuevoEstado: "confirmado" | "ausente" | "pendiente"
+  ) => {
+    if (nuevoEstado === "no_asiste") {
       // Abrir modal para seleccionar motivo
       setAsistenciaEditar(asistencia);
       setShowMotivoModal(true);
@@ -94,20 +142,34 @@ export default function DetalleAsistencia() {
     }
   };
 
-  const actualizarAsistencia = async (jugadorId, estado, motivoAusenciaId) => {
+  const actualizarAsistencia = async (
+    jugadorId: number,
+    estado: string,
+    motivoAusenciaId: number | null
+  ) => {
+    if (!id) return;
+
     try {
       // Guardar posición del scroll antes de actualizar
       const scrollPos = window.scrollY;
 
-      const data = { estado };
+      const data: any = { estado };
       if (motivoAusenciaId) {
         data.motivoAusenciaId = motivoAusenciaId;
       }
 
       if (tipo === "entrenamientos" || tipo === "entrenamiento") {
-        await entrenamientos.actualizarAsistenciaGestor(id, jugadorId, data);
+        await entrenamientos.actualizarAsistenciaGestor(
+          parseInt(id),
+          jugadorId,
+          data
+        );
       } else {
-        await partidos.actualizarAsistenciaGestor(id, jugadorId, data);
+        await partidos.actualizarAsistenciaGestor(
+          parseInt(id),
+          jugadorId,
+          data
+        );
       }
 
       // Recargar datos
@@ -141,7 +203,7 @@ export default function DetalleAsistencia() {
   const confirmados =
     evento?.asistencias?.filter((a) => a.estado === "confirmado").length || 0;
   const noAsisten =
-    evento?.asistencias?.filter((a) => a.estado === "ausente").length || 0;
+    evento?.asistencias?.filter((a) => a.estado === "no_asiste").length || 0;
   const pendientes =
     evento?.asistencias?.filter((a) => a.estado === "pendiente").length || 0;
 
@@ -171,7 +233,7 @@ export default function DetalleAsistencia() {
         // Si ambos no tienen dorsal, mantener orden original
         if (!a.dorsal && !b.dorsal) return 0;
         // Si ambos tienen dorsal, ordenar por número
-        return a.dorsal - b.dorsal;
+        return (a.dorsal || 0) - (b.dorsal || 0);
       }) || [];
   const asistenciasExtras =
     evento?.asistencias?.filter((a) => a.posicion === "Extra") || [];
@@ -187,7 +249,7 @@ export default function DetalleAsistencia() {
     (a) => a.estado === "confirmado"
   ).length;
 
-  const renderAsistenciaCard = (asistencia, badge) => (
+  const renderAsistenciaCard = (asistencia: Asistencia, badge: BadgeConfig) => (
     <>
       <div className="flex items-center gap-3 sm:gap-4">
         <div
@@ -248,10 +310,9 @@ export default function DetalleAsistencia() {
             ✓ Confirmar
           </button>
           <button
-            onClick={() => handleCambiarEstado(asistencia, "ausente")}
+            onClick={() => handleCambiarEstado(asistencia, "no_asiste")}
             className={`text-xs sm:text-sm px-3 py-1.5 rounded font-medium transition ${
-              asistencia.estado === "no_asiste" ||
-              asistencia.estado === "ausente"
+              asistencia.estado === "no_asiste"
                 ? "bg-red-600 text-white"
                 : "bg-red-100 text-red-700 hover:bg-red-200"
             }`}
@@ -381,7 +442,11 @@ export default function DetalleAsistencia() {
                   {(() => {
                     const fechaStr = evento.fecha.split("T")[0];
                     const [year, month, day] = fechaStr.split("-");
-                    const fecha = new Date(year, month - 1, day);
+                    const fecha = new Date(
+                      parseInt(year),
+                      parseInt(month) - 1,
+                      parseInt(day)
+                    );
                     return fecha.toLocaleDateString("es-ES", {
                       weekday: "long",
                       year: "numeric",

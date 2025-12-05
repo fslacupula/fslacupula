@@ -1,28 +1,34 @@
-import { useState } from "react";
+import { useState, FormEvent, ChangeEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { auth } from "../services/api";
 import { useAuthContext } from "@contexts";
 
+interface LoginFormData {
+  email: string;
+  password: string;
+}
+
 export default function Login() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginFormData>({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
   const { login } = useAuthContext();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     try {
-      const response = await auth.login(formData);
-      localStorage.setItem("token", response.data.token);
-      login(response.data.usuario);
+      await login(formData.email, formData.password);
       navigate("/dashboard");
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.error || "Error al iniciar sesión");
     }
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -45,12 +51,11 @@ export default function Login() {
             </label>
             <input
               type="email"
+              name="email"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={handleChange}
             />
           </div>
 
@@ -60,12 +65,11 @@ export default function Login() {
             </label>
             <input
               type="password"
+              name="password"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              onChange={handleChange}
             />
           </div>
 

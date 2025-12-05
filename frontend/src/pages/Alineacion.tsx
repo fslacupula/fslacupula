@@ -3,18 +3,29 @@ import { useNavigate } from "react-router-dom";
 import PistaFutsal from "../components/PistaFutsal";
 import { useAuthContext } from "@contexts";
 
+interface Jugador {
+  id: number;
+  nombre: string;
+  alias: string;
+  dorsal: number;
+  posicion: string;
+  color: string;
+}
+
 /**
  * Vista de Alineación - Muestra la pista de fútbol sala con jugadores confirmados
  */
 export default function Alineacion() {
-  const { logout } = useAuthContext();
+  const { usuario, logout } = useAuthContext();
   const navigate = useNavigate();
-  const [jugadoresConfirmados, setJugadoresConfirmados] = useState([]);
+  const [jugadoresConfirmados, setJugadoresConfirmados] = useState<Jugador[]>(
+    []
+  );
 
   useEffect(() => {
     // Ejemplo de datos - En producción vendrían de una API
     // Puedes integrar esto con los datos reales de asistencias confirmadas
-    const ejemploJugadores = [
+    const ejemploJugadores: Jugador[] = [
       {
         id: 1,
         nombre: "Juan García",

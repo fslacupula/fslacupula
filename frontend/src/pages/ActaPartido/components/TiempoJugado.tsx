@@ -1,6 +1,33 @@
 import { formatearTiempo } from "../utils/actaHelpers";
 
-export default function TiempoJugado({ jugadores, staff }) {
+interface Jugador {
+  jugador_id: number;
+  jugador_nombre_completo: string;
+  alias?: string;
+  dorsal?: number;
+  equipo: "local" | "visitante";
+  minutos_jugados?: number;
+  tarjetas_amarillas?: number;
+  tarjetas_rojas?: number;
+  goles?: number;
+}
+
+interface Staff {
+  id?: number;
+  nombre: string;
+  tipo?: string;
+  tipo_staff?: string;
+  equipo: "local" | "visitante";
+  tarjetas_amarillas?: number;
+  tarjetas_rojas?: number;
+}
+
+interface TiempoJugadoProps {
+  jugadores: Jugador[];
+  staff?: Staff[];
+}
+
+export default function TiempoJugado({ jugadores, staff }: TiempoJugadoProps) {
   return (
     <div className="col-span-1">
       <div className="bg-white rounded-lg shadow-lg p-6">
@@ -10,8 +37,8 @@ export default function TiempoJugado({ jugadores, staff }) {
             .filter((j) => j.equipo === "local")
             .sort((a, b) => (b.minutos_jugados || 0) - (a.minutos_jugados || 0))
             .map((jugador, index) => {
-              const tieneAmarilla = jugador.tarjetas_amarillas > 0;
-              const tieneRoja = jugador.tarjetas_rojas > 0;
+              const tieneAmarilla = (jugador.tarjetas_amarillas || 0) > 0;
+              const tieneRoja = (jugador.tarjetas_rojas || 0) > 0;
               const numGoles = jugador.goles || 0;
 
               return (
@@ -99,8 +126,8 @@ export default function TiempoJugado({ jugadores, staff }) {
               {staff
                 .filter((miembro) => miembro.equipo === "local")
                 .map((miembro, index) => {
-                  const tieneAmarilla = miembro.tarjetas_amarillas > 0;
-                  const tieneRoja = miembro.tarjetas_rojas > 0;
+                  const tieneAmarilla = (miembro.tarjetas_amarillas || 0) > 0;
+                  const tieneRoja = (miembro.tarjetas_rojas || 0) > 0;
 
                   return (
                     <div

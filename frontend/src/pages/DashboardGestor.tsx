@@ -283,7 +283,9 @@ export default function DashboardGestor() {
 
   const handleVerDetalle = (id: number, tipo: "entrenamiento" | "partido") => {
     navigate(
-      `/${tipo === "entrenamiento" ? "entrenamiento" : "partido"}/${id}`
+      `/asistencia/${
+        tipo === "entrenamiento" ? "entrenamientos" : "partidos"
+      }/${id}`
     );
   };
 
@@ -386,6 +388,15 @@ export default function DashboardGestor() {
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
               >
                 + Añadir Jugador
+              </button>
+            )}
+
+            {activeTab === "partidos" && (
+              <button
+                onClick={() => navigate("/configurar-partido")}
+                className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors font-medium flex items-center gap-2"
+              >
+                ⚙️ Configurar Partido
               </button>
             )}
           </div>

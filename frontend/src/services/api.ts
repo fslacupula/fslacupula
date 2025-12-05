@@ -228,6 +228,11 @@ export const partidos = {
       comentario?: string;
     }
   ) => api.put(`/partidos/${id}/asistencia/${jugadorId}`, data),
+
+  finalizarPartido: (id: number, data: any) =>
+    api.post(`/partidos/${id}/finalizar`, data),
+
+  obtenerEstadisticas: (id: number) => api.get(`/partidos/${id}/estadisticas`),
 };
 
 // Módulo de motivos de ausencia

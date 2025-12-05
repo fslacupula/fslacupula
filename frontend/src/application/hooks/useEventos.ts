@@ -120,7 +120,7 @@ export function useEventos(filtros?: FiltrosEventos) {
         ubicacion: datos.ubicacion,
         rival: datos.rival,
         tipo: datos.tipo,
-        es_local: datos.esLocal,
+        esLocal: datos.esLocal,
       });
       const nuevoPartido = Partido.fromDTO(response.data.partido);
 
@@ -194,7 +194,7 @@ export function useEventos(filtros?: FiltrosEventos) {
         ubicacion: datos.ubicacion,
         rival: datos.rival,
         tipo: datos.tipo,
-        es_local: datos.esLocal,
+        esLocal: datos.esLocal,
       });
       const partidoActualizado = Partido.fromDTO(response.data.partido);
 

@@ -1,10 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { auth, posiciones as posicionesApi } from "../services/api";
 import { useAuthContext } from "@contexts";
 
+interface Posicion {
+  id: number;
+  nombre: string;
+  abreviatura: string;
+}
+
+interface RegisterFormData {
+  nombre: string;
+  email: string;
+  password: string;
+  rol: "jugador" | "gestor";
+  dorsal: string;
+  posicion: string;
+}
+
 export default function Register() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormData>({
     nombre: "",
     email: "",
     password: "",
@@ -12,8 +27,8 @@ export default function Register() {
     dorsal: "",
     posicion: "",
   });
-  const [posiciones, setPosiciones] = useState([]);
-  const [error, setError] = useState("");
+  const [posiciones, setPosiciones] = useState<Posicion[]>([]);
+  const [error, setError] = useState<string>("");
   const { login } = useAuthContext();
   const navigate = useNavigate();
 
@@ -30,12 +45,12 @@ export default function Register() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
     try {
-      const dataToSend = {
+      const dataToSend: any = {
         nombre: formData.nombre,
         email: formData.email,
         password: formData.password,
@@ -49,13 +64,19 @@ export default function Register() {
         };
       }
 
-      const response = await auth.register(dataToSend);
-      localStorage.setItem("token", response.data.token);
-      login(response.data.usuario);
+      await auth.register(dataToSend);
+      // La respuesta de register no incluye token, hacer login después
+      await login(formData.email, formData.password);
       navigate("/dashboard");
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.error || "Error al registrarse");
     }
+  };
+
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -78,12 +99,11 @@ export default function Register() {
             </label>
             <input
               type="text"
+              name="nombre"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.nombre}
-              onChange={(e) =>
-                setFormData({ ...formData, nombre: e.target.value })
-              }
+              onChange={handleChange}
             />
           </div>
 
@@ -93,12 +113,11 @@ export default function Register() {
             </label>
             <input
               type="email"
+              name="email"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={handleChange}
             />
           </div>
 
@@ -108,12 +127,11 @@ export default function Register() {
             </label>
             <input
               type="password"
+              name="password"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              onChange={handleChange}
             />
           </div>
 
@@ -122,12 +140,11 @@ export default function Register() {
               Rol
             </label>
             <select
+              name="rol"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               value={formData.rol}
-              onChange={(e) =>
-                setFormData({ ...formData, rol: e.target.value })
-              }
+              onChange={handleChange}
             >
               <option value="jugador">Jugador</option>
               <option value="gestor">Gestor</option>
@@ -142,14 +159,13 @@ export default function Register() {
                 </label>
                 <input
                   type="number"
+                  name="dorsal"
                   required
                   min="1"
                   max="99"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   value={formData.dorsal}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dorsal: e.target.value })
-                  }
+                  onChange={handleChange}
                 />
               </div>
 
@@ -158,12 +174,11 @@ export default function Register() {
                   Posición
                 </label>
                 <select
+                  name="posicion"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   value={formData.posicion}
-                  onChange={(e) =>
-                    setFormData({ ...formData, posicion: e.target.value })
-                  }
+                  onChange={handleChange}
                 >
                   <option value="">Selecciona una posición</option>
                   {posiciones.map((pos) => (
